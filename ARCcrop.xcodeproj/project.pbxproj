@@ -1,0 +1,448 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		02C4058FA8AA12C10CD8D1C4 /* CropDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1AF05347F3D4DCB091942CB /* CropDashboardView.swift */; };
+		02D4D1F34E6173838ED004C0 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6235C3A2D68A2A4C0B3E5D73 /* AppSettings.swift */; };
+		4BAA97431F6EC31A76157C8B /* EODataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 053C6DE2C87F81FD623047A5 /* EODataSource.swift */; };
+		5D49693DFF570E144FF48768 /* ARCcropApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E19365F5B372CB76216B908B /* ARCcropApp.swift */; };
+		BAB42B05C33E65CFEA59DE20 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54854DDB0FAB60C4A80B7F71 /* SettingsView.swift */; };
+		D3D04733764EF7CC440FCEEC /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A43D6DAEE383DB9E6A57CF9A /* LocationService.swift */; };
+		D649D82550E45FDE8C637C3D /* EODataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 284DB93155C961411320C11E /* EODataService.swift */; };
+		D90D613C0F9C865D62BF5CDF /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 652673D194F0858ECEFA52F7 /* MapView.swift */; };
+		E9C0A45156227629E799F10F /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEB298BCE9763881F0B149F1 /* ContentView.swift */; };
+		F2FBC75D5BE54C84F07ED660 /* CropCondition.swift in Sources */ = {isa = PBXBuildFile; fileRef = A62592A5CEF5A7B2AA356009 /* CropCondition.swift */; };
+		FD3D543A632D7475A86173D9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 78A9D698087489E800773B7D /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		053C6DE2C87F81FD623047A5 /* EODataSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EODataSource.swift; sourceTree = "<group>"; };
+		05E11266064A40130C0DA050 /* ARCcrop.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ARCcrop.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		284DB93155C961411320C11E /* EODataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EODataService.swift; sourceTree = "<group>"; };
+		54854DDB0FAB60C4A80B7F71 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		6235C3A2D68A2A4C0B3E5D73 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		652673D194F0858ECEFA52F7 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
+		78A9D698087489E800773B7D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A43D6DAEE383DB9E6A57CF9A /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
+		A62592A5CEF5A7B2AA356009 /* CropCondition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropCondition.swift; sourceTree = "<group>"; };
+		B36B66DF0B9C55CDCB83FEED /* ARCcropTV.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ARCcropTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C1AF05347F3D4DCB091942CB /* CropDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropDashboardView.swift; sourceTree = "<group>"; };
+		CEB298BCE9763881F0B149F1 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		E19365F5B372CB76216B908B /* ARCcropApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARCcropApp.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		3BD24E08E39EC715910F587C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				05E11266064A40130C0DA050 /* ARCcrop.app */,
+				B36B66DF0B9C55CDCB83FEED /* ARCcropTV.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		4B98826AF85DA90414588514 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				6235C3A2D68A2A4C0B3E5D73 /* AppSettings.swift */,
+				A62592A5CEF5A7B2AA356009 /* CropCondition.swift */,
+				053C6DE2C87F81FD623047A5 /* EODataSource.swift */,
+			);
+			name = Models;
+			path = ARCcrop/Models;
+			sourceTree = "<group>";
+		};
+		594A85AADFDE36D72A1B3723 /* ARCcrop */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = ARCcrop;
+			sourceTree = "<group>";
+		};
+		68A4257A4DEF036EE4413F3A /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				CEB298BCE9763881F0B149F1 /* ContentView.swift */,
+				C1AF05347F3D4DCB091942CB /* CropDashboardView.swift */,
+				652673D194F0858ECEFA52F7 /* MapView.swift */,
+				54854DDB0FAB60C4A80B7F71 /* SettingsView.swift */,
+			);
+			name = Views;
+			path = ARCcrop/Views;
+			sourceTree = "<group>";
+		};
+		6D7E8D04CF94A09C8127E70A /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				284DB93155C961411320C11E /* EODataService.swift */,
+				A43D6DAEE383DB9E6A57CF9A /* LocationService.swift */,
+			);
+			name = Services;
+			path = ARCcrop/Services;
+			sourceTree = "<group>";
+		};
+		6EAEDDBAF4901E8AE23E3B6B /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				78A9D698087489E800773B7D /* Assets.xcassets */,
+			);
+			name = Resources;
+			path = ARCcrop/Resources;
+			sourceTree = "<group>";
+		};
+		7E560F1FCC63C1C9C3F2ECFE = {
+			isa = PBXGroup;
+			children = (
+				F2C5D51FD88FB3D9272BD4E5 /* App */,
+				594A85AADFDE36D72A1B3723 /* ARCcrop */,
+				4B98826AF85DA90414588514 /* Models */,
+				6EAEDDBAF4901E8AE23E3B6B /* Resources */,
+				6D7E8D04CF94A09C8127E70A /* Services */,
+				68A4257A4DEF036EE4413F3A /* Views */,
+				3BD24E08E39EC715910F587C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F2C5D51FD88FB3D9272BD4E5 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				E19365F5B372CB76216B908B /* ARCcropApp.swift */,
+			);
+			name = App;
+			path = ARCcrop/App;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		25D7C2FC95BF1E2DC13977B7 /* ARCcropTV */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FFB343785B220267244B119A /* Build configuration list for PBXNativeTarget "ARCcropTV" */;
+			buildPhases = (
+				22CE36929A998D4A75BA7B01 /* Sources */,
+				41B7B4BB8F3FBD864A6FDE91 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ARCcropTV;
+			packageProductDependencies = (
+			);
+			productName = ARCcropTV;
+			productReference = B36B66DF0B9C55CDCB83FEED /* ARCcropTV.app */;
+			productType = "com.apple.product-type.application";
+		};
+		89EA226FB5DC64A2EFB9B7AC /* ARCcrop */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 62F8956F17CE953D5F816C08 /* Build configuration list for PBXNativeTarget "ARCcrop" */;
+			buildPhases = (
+				3ED74F9A91EACC076C6DA20B /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ARCcrop;
+			packageProductDependencies = (
+			);
+			productName = ARCcrop;
+			productReference = 05E11266064A40130C0DA050 /* ARCcrop.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		FB7D79D6DE1FE573BF169A1F /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+			};
+			buildConfigurationList = 9749E643C8B514C664B05514 /* Build configuration list for PBXProject "ARCcrop" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 7E560F1FCC63C1C9C3F2ECFE;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				89EA226FB5DC64A2EFB9B7AC /* ARCcrop */,
+				25D7C2FC95BF1E2DC13977B7 /* ARCcropTV */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		41B7B4BB8F3FBD864A6FDE91 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FD3D543A632D7475A86173D9 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		22CE36929A998D4A75BA7B01 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5D49693DFF570E144FF48768 /* ARCcropApp.swift in Sources */,
+				02D4D1F34E6173838ED004C0 /* AppSettings.swift in Sources */,
+				E9C0A45156227629E799F10F /* ContentView.swift in Sources */,
+				F2FBC75D5BE54C84F07ED660 /* CropCondition.swift in Sources */,
+				02C4058FA8AA12C10CD8D1C4 /* CropDashboardView.swift in Sources */,
+				D649D82550E45FDE8C637C3D /* EODataService.swift in Sources */,
+				4BAA97431F6EC31A76157C8B /* EODataSource.swift in Sources */,
+				D3D04733764EF7CC440FCEEC /* LocationService.swift in Sources */,
+				D90D613C0F9C865D62BF5CDF /* MapView.swift in Sources */,
+				BAB42B05C33E65CFEA59DE20 /* SettingsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3ED74F9A91EACC076C6DA20B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		36F79FAA699654794A6BDEB4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = ARCcrop/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.arccrop.app;
+				SDKROOT = iphoneos;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		5D6F7FBE2E6E7B2A5AC05AB9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+				TVOS_DEPLOYMENT_TARGET = 18.0;
+			};
+			name = Release;
+		};
+		9A227F0C0593B259F0FB8CF6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = ARCcrop/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.arccrop.app;
+				SDKROOT = iphoneos;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A168757A4C56F616670E0575 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				INFOPLIST_FILE = ARCcropTV/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.arccrop.app.tv;
+				SDKROOT = appletvos;
+				TARGETED_DEVICE_FAMILY = 3;
+			};
+			name = Debug;
+		};
+		E93BF427DFAD19C5102DA51B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+				TVOS_DEPLOYMENT_TARGET = 18.0;
+			};
+			name = Debug;
+		};
+		F6BF61462A990F5906114BF9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				INFOPLIST_FILE = ARCcropTV/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.arccrop.app.tv;
+				SDKROOT = appletvos;
+				TARGETED_DEVICE_FAMILY = 3;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		62F8956F17CE953D5F816C08 /* Build configuration list for PBXNativeTarget "ARCcrop" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9A227F0C0593B259F0FB8CF6 /* Debug */,
+				36F79FAA699654794A6BDEB4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9749E643C8B514C664B05514 /* Build configuration list for PBXProject "ARCcrop" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E93BF427DFAD19C5102DA51B /* Debug */,
+				5D6F7FBE2E6E7B2A5AC05AB9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		FFB343785B220267244B119A /* Build configuration list for PBXNativeTarget "ARCcropTV" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A168757A4C56F616670E0575 /* Debug */,
+				F6BF61462A990F5906114BF9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = FB7D79D6DE1FE573BF169A1F /* Project object */;
+}
