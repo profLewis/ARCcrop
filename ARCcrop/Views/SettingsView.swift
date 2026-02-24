@@ -145,10 +145,15 @@ struct APIKeySetupView: View {
                     .font(.callout)
             }
 
-            Section("Sign Up") {
+            Section("Quick Links") {
+                Link(destination: URL(string: provider.registrationURL)!) {
+                    Label("Register / Sign Up", systemImage: "person.badge.plus")
+                }
                 Link(destination: URL(string: provider.signupURL)!) {
-                    Label(provider.signupURL, systemImage: "safari")
-                        .font(.callout)
+                    Label("Get API Key / Credentials", systemImage: "key")
+                }
+                Link(destination: URL(string: provider.documentationURL)!) {
+                    Label("API Documentation", systemImage: "doc.text")
                 }
             }
 
