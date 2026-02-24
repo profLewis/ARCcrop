@@ -9,27 +9,29 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: 74SY6DZ377
+    CODE_SIGN_STYLE: Automatic
 
 targets:
   ARCcrop:
     type: application
     platform: iOS
     sources:
-      - path: ARCcrop
-        excludes:
-          - "**/.*"
+      - path: ARCcrop/App
+      - path: ARCcrop/Views
+      - path: ARCcrop/Models
+      - path: ARCcrop/Services
+      - path: ARCcrop/Resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.arccrop.app
+        GENERATE_INFOPLIST_FILE: true
         INFOPLIST_FILE: ARCcrop/Info.plist
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: true
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-    info:
-      path: ARCcrop/Info.plist
-      properties:
-        UILaunchScreen: {}
 
   ARCcropTV:
     type: application
@@ -43,10 +45,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.arccrop.app.tv
+        GENERATE_INFOPLIST_FILE: true
         INFOPLIST_FILE: ARCcropTV/Info.plist
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-    info:
-      path: ARCcropTV/Info.plist
-      properties:
-        UILaunchScreen: {}

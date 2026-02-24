@@ -11,6 +11,7 @@ final class AppSettings {
     ]
 
     var vegetationIndex: VegetationIndex = .ndvi
+    var selectedCropMap: CropMapSource = .none
 
     private init() {}
 }
