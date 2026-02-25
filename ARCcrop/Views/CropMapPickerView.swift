@@ -5,60 +5,61 @@ struct CropMapPickerView: View {
 
     var body: some View {
         Menu {
-            Button("None") {
+            Button {
                 selectedSource = .none
+            } label: {
+                if case .none = selectedSource {
+                    Label("None", systemImage: "checkmark")
+                } else {
+                    Text("None")
+                }
             }
 
             Section("GEOGLAM (Embedded)") {
-                Button {
-                    selectedSource = .geoglamCropPicture
-                } label: {
-                    Label("Crop Picture RGB (2022)", systemImage: "paintpalette.fill")
-                }
+                sourceButton(.geoglamCropPicture, icon: "paintpalette.fill")
                 ForEach(GEOGLAMCrop.allCases) { crop in
-                    Button {
-                        selectedSource = .geoglam(crop)
-                    } label: {
-                        Label("\(crop.rawValue) (2022)", systemImage: "leaf.fill")
-                    }
+                    sourceButton(.geoglam(crop), icon: "leaf.fill")
                 }
             }
 
             Section("WMS Services") {
-                Button {
-                    selectedSource = .usdaCDL(year: 2023)
-                } label: {
-                    Label("USDA CDL (2023, US)", systemImage: "flag.fill")
-                }
+                sourceButton(.usdaCDL(year: 2023), icon: "flag.fill")
+                sourceButton(.gladCropland(year: 2020), icon: "map.fill")
             }
 
             Section("Requires API Key") {
-                apiKeyButton(.dynamicWorld, icon: "globe")
-                apiKeyButton(.worldCereal, icon: "globe.europe.africa.fill")
-                apiKeyButton(.gladCropland(year: 2020), icon: "map.fill")
-                apiKeyButton(.copernicusLandCover, icon: "satellite.fill")
-                apiKeyButton(.fromGLC, icon: "square.grid.3x3.fill")
-                apiKeyButton(.mapBiomas(year: 2022), icon: "leaf.arrow.circlepath")
+                sourceButton(.dynamicWorld, icon: "globe")
+                sourceButton(.worldCereal, icon: "globe.europe.africa.fill")
+                sourceButton(.copernicusLandCover, icon: "satellite.fill")
+                sourceButton(.fromGLC, icon: "square.grid.3x3.fill")
+                sourceButton(.mapBiomas(year: 2022), icon: "leaf.arrow.circlepath")
             }
         } label: {
-            Label("Crop Map", systemImage: "square.3.layers.3d")
-                .font(.callout.bold())
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(.ultraThinMaterial)
-                .clipShape(Capsule())
+            HStack(spacing: 4) {
+                Image(systemName: "square.3.layers.3d")
+                Text(selectedSource == .none ? "Crop Map" : selectedSource.displayName)
+                    .lineLimit(1)
+            }
+            .font(.callout.bold())
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial)
+            .clipShape(Capsule())
         }
     }
 
-    private func apiKeyButton(_ source: CropMapSource, icon: String) -> some View {
+    private func sourceButton(_ source: CropMapSource, icon: String) -> some View {
         Button {
             selectedSource = source
         } label: {
             HStack {
                 Label(source.displayName, systemImage: icon)
-                if source.isAvailable {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                if source.id == selectedSource.id {
+                    Image(systemName: "checkmark")
+                }
+                if source.requiresAPIKey && !source.isAvailable {
+                    Image(systemName: "key")
+                        .foregroundStyle(.secondary)
                 }
             }
         }

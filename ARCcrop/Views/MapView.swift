@@ -4,8 +4,6 @@ import MapKit
 #if !os(tvOS)
 struct MapView: View {
     @Environment(AppSettings.self) private var settings
-    @State private var showAPIKeyAlert = false
-    @State private var pendingSource: CropMapSource = .none
 
     var body: some View {
         NavigationStack {
@@ -38,30 +36,17 @@ struct MapView: View {
             }
             .navigationTitle("Crop Map")
             .toolbarTitleDisplayMode(.inline)
-            .alert("API Key Required", isPresented: $showAPIKeyAlert) {
-                Button("Set Up Now") {
-                    if let provider = pendingSource.apiKeyProvider,
-                       let url = URL(string: provider.signupURL) {
-                        UIApplication.shared.open(url)
-                    }
-                    pendingSource = .none
-                }
-                Button("Cancel", role: .cancel) {
-                    pendingSource = .none
-                }
-            } message: {
-                if let provider = pendingSource.apiKeyProvider {
-                    Text("\(pendingSource.displayName) requires a \(provider.rawValue) API key.\n\nYou can also configure keys in Settings → API Keys.")
-                }
-            }
         }
     }
 
     private func handleSourceSelection(_ source: CropMapSource) {
         if source.requiresAPIKey && !source.isAvailable {
-            pendingSource = source
-            showAPIKeyAlert = true
+            // Remember which source was requested, navigate to Settings API key page
+            settings.pendingCropMapSource = source
+            settings.apiKeySetupProvider = source.apiKeyProvider
+            settings.selectedTab = .settings
         } else {
+            settings.hiddenClasses = []
             settings.selectedCropMap = source
         }
     }

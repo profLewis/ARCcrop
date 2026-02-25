@@ -2,9 +2,10 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppSettings.self) private var settings
+    @State private var navigationPath = NavigationPath()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navigationPath) {
             Form {
                 Section("EO Data Sources") {
                     ForEach(EODataSource.allCases) { source in
@@ -25,9 +26,7 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    NavigationLink {
-                        APIKeysListView()
-                    } label: {
+                    NavigationLink(value: SettingsDestination.apiKeysList) {
                         HStack {
                             Label("Crop Map API Keys", systemImage: "key.fill")
                             Spacer()
@@ -49,8 +48,40 @@ struct SettingsView: View {
             #if !os(tvOS)
             .toolbarTitleDisplayMode(.inline)
             #endif
+            .navigationDestination(for: SettingsDestination.self) { dest in
+                switch dest {
+                case .apiKeysList:
+                    APIKeysListView()
+                case .apiKeySetup(let provider):
+                    APIKeySetupView(provider: provider) {
+                        // After saving, apply the pending source and go back to the map
+                        if let pending = settings.pendingCropMapSource, pending.isAvailable {
+                            settings.selectedCropMap = pending
+                        }
+                        settings.pendingCropMapSource = nil
+                        settings.apiKeySetupProvider = nil
+                        settings.selectedTab = .map
+                    }
+                }
+            }
+            .onAppear {
+                // Deep-link: if the map sent us here for a specific provider, navigate straight in
+                if let provider = settings.apiKeySetupProvider {
+                    navigationPath = NavigationPath([SettingsDestination.apiKeySetup(provider)])
+                }
+            }
+            .onChange(of: settings.apiKeySetupProvider) {
+                if let provider = settings.apiKeySetupProvider {
+                    navigationPath = NavigationPath([SettingsDestination.apiKeySetup(provider)])
+                }
+            }
         }
     }
+}
+
+enum SettingsDestination: Hashable {
+    case apiKeysList
+    case apiKeySetup(APIKeyProvider)
 }
 
 // MARK: - API Keys List
@@ -61,9 +92,7 @@ struct APIKeysListView: View {
     var body: some View {
         Form {
             ForEach(APIKeyProvider.allCases, id: \.rawValue) { provider in
-                NavigationLink {
-                    APIKeySetupView(provider: provider, onSave: { refreshToken = UUID() })
-                } label: {
+                NavigationLink(value: SettingsDestination.apiKeySetup(provider)) {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(provider.rawValue)
@@ -72,12 +101,19 @@ struct APIKeysListView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        if KeychainService.hasKey(for: provider) {
-                            Image(systemName: "checkmark.circle.fill")
+                        switch provider.credentialType {
+                        case .none:
+                            Text("Public")
+                                .font(.caption)
                                 .foregroundStyle(.green)
-                        } else {
-                            Image(systemName: "xmark.circle")
-                                .foregroundStyle(.secondary)
+                        case .apiKey, .usernamePassword:
+                            if KeychainService.hasKey(for: provider) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                            } else {
+                                Image(systemName: "xmark.circle")
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -98,6 +134,8 @@ struct APIKeySetupView: View {
     var onSave: (() -> Void)?
 
     @State private var keyText: String = ""
+    @State private var username: String = ""
+    @State private var password: String = ""
     @State private var isConfigured: Bool = false
     @State private var showDeleteConfirm = false
     @State private var showSavedToast = false
@@ -107,11 +145,14 @@ struct APIKeySetupView: View {
         Form {
             // MARK: Status
             Section {
-                if isConfigured {
-                    Label("Key configured — ready to use", systemImage: "checkmark.circle.fill")
+                if provider.credentialType == .none {
+                    Label("No credentials needed — public access", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                } else if isConfigured {
+                    Label("Configured — ready to use", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                 } else {
-                    Label("No key stored — follow the steps below", systemImage: "exclamationmark.triangle.fill")
+                    Label("Not configured — follow the steps below", systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
                 }
             } header: {
@@ -120,92 +161,75 @@ struct APIKeySetupView: View {
                 Text("Used by: \(provider.usedBy)")
             }
 
-            // MARK: Step 1
-            Section {
-                Link(destination: URL(string: provider.registrationURL)!) {
-                    Label("Open Registration Page", systemImage: "safari")
-                }
-            } header: {
-                Text("Step 1 — Create an Account")
-            } footer: {
-                Text(provider.registrationHint)
-            }
-
-            // MARK: Step 2
+            // MARK: Instructions
             Section {
                 Text((try? AttributedString(markdown: provider.instructions)) ?? AttributedString(provider.instructions))
                     .font(.callout)
                     .tint(.blue)
-                Link(destination: URL(string: provider.signupURL)!) {
-                    Label("Open Credentials Page", systemImage: "safari")
-                }
             } header: {
-                Text("Step 2 — Generate API Key")
-            } footer: {
-                Text("Copy the key/token to your clipboard, then come back to this app.")
+                Text("About")
             }
 
-            // MARK: Step 3
-            Section {
-                Text("After copying your key in Safari, switch back to this app and tap \"Paste from Clipboard\" below.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+            // MARK: Credential entry (skip for .none)
+            if provider.credentialType != .none {
 
-                #if !os(tvOS)
-                if showKey {
-                    TextField("Paste your API key here", text: $keyText, axis: .vertical)
-                        .lineLimit(1...6)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                        .font(.system(.callout, design: .monospaced))
-                } else {
-                    SecureField("Paste your API key here", text: $keyText)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                }
-
-                Toggle("Show key text", isOn: $showKey)
-                    .font(.callout)
-                #else
-                TextField("Paste your API key here", text: $keyText, axis: .vertical)
-                    .lineLimit(1...6)
-                    .autocorrectionDisabled()
-                    .font(.system(.callout, design: .monospaced))
-                #endif
-
-                Button {
-                    if let pasted = UIPasteboard.general.string, !pasted.isEmpty {
-                        keyText = pasted
+                // MARK: Step 1
+                Section {
+                    Link(destination: URL(string: provider.registrationURL)!) {
+                        Label("Open Registration Page", systemImage: "safari")
                     }
-                } label: {
-                    Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
+                } header: {
+                    Text("Step 1 — Create an Account")
+                } footer: {
+                    Text(provider.registrationHint)
                 }
 
-                Button {
-                    guard !keyText.isEmpty else { return }
-                    let _ = KeychainService.save(key: keyText, for: provider)
-                    isConfigured = true
-                    keyText = ""
-                    showKey = false
-                    showSavedToast = true
-                    onSave?()
-                } label: {
-                    Label("Save Key to Keychain", systemImage: "square.and.arrow.down")
-                        .bold()
+                // MARK: Step 2
+                Section {
+                    Link(destination: URL(string: provider.signupURL)!) {
+                        Label("Open Credentials Page", systemImage: "safari")
+                    }
+                } header: {
+                    Text("Step 2 — Get Credentials")
+                } footer: {
+                    if provider.credentialType == .usernamePassword {
+                        Text("You will need your username and password.")
+                    } else {
+                        Text("Copy the key/token, then come back to this app.")
+                    }
                 }
-                .disabled(keyText.isEmpty)
 
-                if isConfigured {
-                    Button(role: .destructive) {
-                        showDeleteConfirm = true
+                // MARK: Step 3 — credential input
+                Section {
+                    switch provider.credentialType {
+                    case .apiKey:
+                        apiKeyEntryView
+                    case .usernamePassword:
+                        usernamePasswordEntryView
+                    case .none:
+                        EmptyView()
+                    }
+
+                    Button {
+                        saveCredentials()
                     } label: {
-                        Label("Delete Stored Key", systemImage: "trash")
+                        Label("Save to Keychain", systemImage: "square.and.arrow.down")
+                            .bold()
                     }
+                    .disabled(!canSave)
+
+                    if isConfigured {
+                        Button(role: .destructive) {
+                            showDeleteConfirm = true
+                        } label: {
+                            Label("Delete Stored Credentials", systemImage: "trash")
+                        }
+                    }
+                } header: {
+                    Text("Step 3 — Enter & Save")
+                } footer: {
+                    Text("Stored securely in the iOS Keychain. Persists across app updates.")
                 }
-            } header: {
-                Text("Step 3 — Paste & Save")
-            } footer: {
-                Text("Your key is stored securely in the iOS Keychain and persists across app updates.")
             }
 
             // MARK: Help
@@ -221,21 +245,30 @@ struct APIKeySetupView: View {
         #endif
         .onAppear {
             isConfigured = KeychainService.hasKey(for: provider)
+            // Pre-fill username if already stored
+            if provider.credentialType == .usernamePassword,
+               let keys = provider.credentialKeys.first,
+               let stored = KeychainService.retrieve(key: keys) {
+                username = stored
+            }
         }
-        .confirmationDialog("Delete API Key?", isPresented: $showDeleteConfirm) {
+        .confirmationDialog("Delete Credentials?", isPresented: $showDeleteConfirm) {
             Button("Delete", role: .destructive) {
                 let _ = KeychainService.delete(for: provider)
                 isConfigured = false
+                username = ""
+                password = ""
+                keyText = ""
                 onSave?()
             }
         } message: {
-            Text("This will remove the stored \(provider.rawValue) key. Sources using this key will become unavailable.")
+            Text("This will remove the stored \(provider.rawValue) credentials. Sources using them will become unavailable.")
         }
         .overlay {
             if showSavedToast {
                 VStack {
                     Spacer()
-                    Text("Key saved to Keychain")
+                    Text("Saved to Keychain")
                         .font(.callout.bold())
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
@@ -251,6 +284,93 @@ struct APIKeySetupView: View {
                 }
             }
         }
+    }
+
+    // MARK: - API Key entry
+
+    @ViewBuilder
+    private var apiKeyEntryView: some View {
+        Text("After copying your key in Safari, switch back here and tap \"Paste from Clipboard\".")
+            .font(.callout)
+            .foregroundStyle(.secondary)
+
+        #if !os(tvOS)
+        if showKey {
+            TextField("API key or token", text: $keyText, axis: .vertical)
+                .lineLimit(1...6)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .font(.system(.callout, design: .monospaced))
+        } else {
+            SecureField("API key or token", text: $keyText)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+        }
+        Toggle("Show key text", isOn: $showKey)
+            .font(.callout)
+        #else
+        TextField("API key or token", text: $keyText, axis: .vertical)
+            .lineLimit(1...6)
+            .autocorrectionDisabled()
+            .font(.system(.callout, design: .monospaced))
+        #endif
+
+        Button {
+            if let pasted = UIPasteboard.general.string, !pasted.isEmpty {
+                keyText = pasted
+            }
+        } label: {
+            Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
+        }
+    }
+
+    // MARK: - Username/Password entry
+
+    @ViewBuilder
+    private var usernamePasswordEntryView: some View {
+        #if !os(tvOS)
+        TextField("Username or email", text: $username)
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+            .textContentType(.username)
+        SecureField("Password", text: $password)
+            .textContentType(.password)
+        #else
+        TextField("Username or email", text: $username)
+            .autocorrectionDisabled()
+        SecureField("Password", text: $password)
+        #endif
+    }
+
+    // MARK: - Save logic
+
+    private var canSave: Bool {
+        switch provider.credentialType {
+        case .apiKey: !keyText.isEmpty
+        case .usernamePassword: !username.isEmpty && !password.isEmpty
+        case .none: false
+        }
+    }
+
+    private func saveCredentials() {
+        switch provider.credentialType {
+        case .apiKey:
+            guard !keyText.isEmpty else { return }
+            KeychainService.store(key: provider.credentialKeys[0], value: keyText)
+            keyText = ""
+            showKey = false
+        case .usernamePassword:
+            guard !username.isEmpty, !password.isEmpty else { return }
+            let keys = provider.credentialKeys
+            KeychainService.store(key: keys[0], value: username)
+            KeychainService.store(key: keys[1], value: password)
+            password = ""
+        case .none:
+            return
+        }
+        isConfigured = true
+        showSavedToast = true
+        onSave?()
     }
 }
 

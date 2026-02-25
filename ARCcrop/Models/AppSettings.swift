@@ -13,5 +13,17 @@ final class AppSettings {
     var vegetationIndex: VegetationIndex = .ndvi
     var selectedCropMap: CropMapSource = .none
 
+    /// Legend class keys that are currently hidden (toggled off)
+    var hiddenClasses: Set<String> = []
+
+    // Navigation: tab switching + deep-link into API key setup
+    var selectedTab: AppTab = .map
+    var apiKeySetupProvider: APIKeyProvider? = nil
+    var pendingCropMapSource: CropMapSource? = nil
+
     private init() {}
+}
+
+enum AppTab: Hashable {
+    case map, dashboard, settings
 }

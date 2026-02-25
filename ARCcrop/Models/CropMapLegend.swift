@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct LegendEntry: Identifiable, Sendable {
-    let id = UUID()
     let color: Color
     let label: String
+    var id: String { label }
 }
 
 struct CropMapLegendData: Sendable {

@@ -2,37 +2,34 @@ import Foundation
 import Security
 
 enum KeychainService {
-    private static func serviceKey(for provider: APIKeyProvider) -> String {
-        "com.arccrop.app.apikeys.\(provider.rawValue)"
-    }
+    private static let serviceName = "com.arccrop.app.credentials"
 
-    static func save(key: String, for provider: APIKeyProvider) -> Bool {
-        let service = serviceKey(for: provider)
-        let data = Data(key.utf8)
+    // MARK: - Generic key-value storage (like eof-ios)
 
-        // Delete existing first
+    static func store(key: String, value: String) {
+        let data = Data(value.utf8)
         let deleteQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
+            kSecAttrService as String: serviceName,
+            kSecAttrAccount as String: key,
         ]
         SecItemDelete(deleteQuery as CFDictionary)
 
-        // Add new
         let addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
+            kSecAttrService as String: serviceName,
+            kSecAttrAccount as String: key,
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
         ]
-        let status = SecItemAdd(addQuery as CFDictionary, nil)
-        return status == errSecSuccess
+        SecItemAdd(addQuery as CFDictionary, nil)
     }
 
-    static func load(for provider: APIKeyProvider) -> String? {
-        let service = serviceKey(for: provider)
+    static func retrieve(key: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
+            kSecAttrService as String: serviceName,
+            kSecAttrAccount as String: key,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
         ]
@@ -42,17 +39,37 @@ enum KeychainService {
         return String(data: data, encoding: .utf8)
     }
 
-    static func delete(for provider: APIKeyProvider) -> Bool {
-        let service = serviceKey(for: provider)
+    static func delete(key: String) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
+            kSecAttrService as String: serviceName,
+            kSecAttrAccount as String: key,
         ]
-        let status = SecItemDelete(query as CFDictionary)
-        return status == errSecSuccess || status == errSecItemNotFound
+        SecItemDelete(query as CFDictionary)
+    }
+
+    // MARK: - Provider convenience (wraps generic API)
+
+    static func save(key: String, for provider: APIKeyProvider) -> Bool {
+        store(key: provider.credentialKeys.first ?? provider.rawValue, value: key)
+        return true
+    }
+
+    static func load(for provider: APIKeyProvider) -> String? {
+        retrieve(key: provider.credentialKeys.first ?? provider.rawValue)
+    }
+
+    static func delete(for provider: APIKeyProvider) -> Bool {
+        for k in provider.credentialKeys {
+            delete(key: k)
+        }
+        return true
     }
 
     static func hasKey(for provider: APIKeyProvider) -> Bool {
-        load(for: provider) != nil
+        provider.credentialKeys.allSatisfy { key in
+            if let val = retrieve(key: key), !val.isEmpty { return true }
+            return false
+        }
     }
 }

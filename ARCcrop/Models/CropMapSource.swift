@@ -131,21 +131,61 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
     }
 }
 
+// MARK: - Credential type
+
+enum CredentialType: Sendable {
+    case apiKey                   // Single key/token
+    case usernamePassword         // Username + password pair
+    case none                     // No credentials needed
+}
+
+// MARK: - API Key Providers
+
 enum APIKeyProvider: String, CaseIterable, Sendable {
     case googleEarthEngine = "Google Earth Engine"
     case copernicus = "Copernicus Data Space"
+    case planetaryComputer = "Planetary Computer"
+    case nasaEarthdata = "NASA Earthdata"
+    case aws = "AWS (Element84)"
+
+    var credentialType: CredentialType {
+        switch self {
+        case .googleEarthEngine: .apiKey
+        case .copernicus: .usernamePassword
+        case .planetaryComputer: .apiKey
+        case .nasaEarthdata: .usernamePassword
+        case .aws: .none
+        }
+    }
+
+    /// Keychain keys used by this provider (matches eof-ios conventions)
+    var credentialKeys: [String] {
+        switch self {
+        case .googleEarthEngine: ["gee.serviceaccount"]
+        case .copernicus: ["cdse.username", "cdse.password"]
+        case .planetaryComputer: ["planetary.apikey"]
+        case .nasaEarthdata: ["earthdata.username", "earthdata.password"]
+        case .aws: []
+        }
+    }
 
     var signupURL: String {
         switch self {
         case .googleEarthEngine: "https://console.cloud.google.com/apis/credentials"
-        case .copernicus: "https://dataspace.copernicus.eu/profile"
+        case .copernicus: "https://documentation.dataspace.copernicus.eu/APIs/Token.html"
+        case .planetaryComputer: "https://planetarycomputer.microsoft.com/account/request"
+        case .nasaEarthdata: "https://urs.earthdata.nasa.gov/profile"
+        case .aws: "https://earth-search.aws.element84.com/v1"
         }
     }
 
     var registrationURL: String {
         switch self {
         case .googleEarthEngine: "https://code.earthengine.google.com/register"
-        case .copernicus: "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/registrations"
+        case .copernicus: "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/auth?client_id=cdse-public&response_type=code&scope=openid&redirect_uri=https%3A//dataspace.copernicus.eu/account/confirmed/1883"
+        case .planetaryComputer: "https://planetarycomputer.microsoft.com"
+        case .nasaEarthdata: "https://urs.earthdata.nasa.gov/users/new"
+        case .aws: "https://earth-search.aws.element84.com/v1"
         }
     }
 
@@ -153,6 +193,9 @@ enum APIKeyProvider: String, CaseIterable, Sendable {
         switch self {
         case .googleEarthEngine: "https://developers.google.com/earth-engine/guides/service_account"
         case .copernicus: "https://documentation.dataspace.copernicus.eu/APIs/OData.html"
+        case .planetaryComputer: "https://planetarycomputer.microsoft.com/docs/quickstarts/reading-stac/"
+        case .nasaEarthdata: "https://www.earthdata.nasa.gov/learn/get-started"
+        case .aws: "https://stacindex.org/catalogs/earth-search"
         }
     }
 
@@ -174,19 +217,40 @@ enum APIKeyProvider: String, CaseIterable, Sendable {
             7. Copy the entire JSON content and paste it as your API key below
             """
         case .copernicus: """
-            1. [Register at Copernicus Data Space](https://dataspace.copernicus.eu) (click "Register" in the top right)
+            1. [Register at Copernicus Data Space](https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/auth?client_id=cdse-public&response_type=code&scope=openid&redirect_uri=https%3A//dataspace.copernicus.eu/account/confirmed/1883) — click "Register" on the login page
 
-            2. Verify your email and log in
+            2. Fill in the form, accept terms, and click Register
 
-            3. Go to your [profile page](https://dataspace.copernicus.eu/profile)
+            3. Check your email and click "Verify email address"
 
-            4. Scroll to "API Key" or "Access Tokens"
+            4. Enter your CDSE username (email) and password below — the app will generate access tokens automatically when needed
 
-            5. Generate a new access token
+            See [Token documentation](https://documentation.dataspace.copernicus.eu/APIs/Token.html) for details.
+            """
+        case .planetaryComputer: """
+            1. Go to [Planetary Computer](https://planetarycomputer.microsoft.com) and sign in with a Microsoft account
 
-            6. Copy the token and paste it below
+            2. [Request access](https://planetarycomputer.microsoft.com/account/request) if you haven't already (approval is usually immediate)
 
-            Note: Tokens may expire. If data stops loading, generate a new token and update it here.
+            3. An API key is **optional** — public data (Sentinel-2, Landsat) works without one, but a key gives higher rate limits
+
+            4. If you have a subscription key, find it in your [Azure portal](https://portal.azure.com) under API Management → Subscriptions
+
+            5. Paste the key below (or leave blank for public access)
+            """
+        case .nasaEarthdata: """
+            1. [Create an Earthdata account](https://urs.earthdata.nasa.gov/users/new) — registration is free
+
+            2. After registering, go to your [profile](https://urs.earthdata.nasa.gov/profile) and note your username
+
+            3. Enter your Earthdata username and password below — the app will generate bearer tokens automatically
+
+            Required for: HLS (Harmonized Landsat Sentinel-2), MODIS, VIIRS, and other NASA LP DAAC products
+            """
+        case .aws: """
+            No credentials are needed. AWS Earth Search (Element84) provides free public access to Sentinel-2 L2A, Landsat, and other collections via STAC.
+
+            Data endpoint: [earth-search.aws.element84.com/v1](https://earth-search.aws.element84.com/v1)
             """
         }
     }
@@ -196,14 +260,23 @@ enum APIKeyProvider: String, CaseIterable, Sendable {
         case .googleEarthEngine:
             "You need a Google account. Earth Engine registration is free for research and non-commercial use."
         case .copernicus:
-            "Registration is free. You will need to verify your email address before you can log in."
+            "Registration is free. Click the avatar icon in the top right, then tap Register."
+        case .planetaryComputer:
+            "Sign in with any Microsoft account. API key is optional for public datasets."
+        case .nasaEarthdata:
+            "Registration is free. You will need a username and password."
+        case .aws:
+            "No registration required. Public access to Sentinel-2, Landsat, and more."
         }
     }
 
     var usedBy: String {
         switch self {
         case .googleEarthEngine: "Dynamic World, WorldCereal, FROM-GLC, MapBiomas"
-        case .copernicus: "Copernicus Land Cover"
+        case .copernicus: "Copernicus Land Cover, Sentinel-2 (CDSE)"
+        case .planetaryComputer: "Sentinel-2, Landsat (Planetary Computer)"
+        case .nasaEarthdata: "HLS, MODIS, VIIRS (NASA LP DAAC)"
+        case .aws: "Sentinel-2, Landsat (Element84 Earth Search)"
         }
     }
 }
