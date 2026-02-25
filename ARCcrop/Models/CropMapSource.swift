@@ -159,43 +159,26 @@ enum APIKeyProvider: String, CaseIterable, Sendable {
     var instructions: String {
         switch self {
         case .googleEarthEngine: """
-            1. Register for Earth Engine at:
-               code.earthengine.google.com/register
-               (requires a Google account)
+            1. [Register for Earth Engine](https://code.earthengine.google.com/register) (requires a Google account)
 
-            2. Go to Google Cloud Console:
-               console.cloud.google.com
+            2. Go to [Google Cloud Console](https://console.cloud.google.com)
 
             3. Create a new project (or select existing)
 
-            4. Enable the "Earth Engine API":
-               APIs & Services → Library → search "Earth Engine"
-               → Enable
+            4. Enable the "Earth Engine API": APIs & Services → Library → search "Earth Engine" → Enable
 
-            5. Create a Service Account:
-               APIs & Services → Credentials → Create Credentials
-               → Service Account → name it → Done
+            5. Create a Service Account: APIs & Services → Credentials → Create Credentials → Service Account → name it → Done
 
-            6. Create a key for the service account:
-               Click the service account → Keys tab
-               → Add Key → Create new key → JSON
-               → Download the JSON file
+            6. Create a key for the service account: Click the service account → Keys tab → Add Key → Create new key → JSON → Download the JSON file
 
-            7. Copy the entire JSON content and paste it
-               as your API key below
-
-            Used by: Dynamic World, ESA WorldCereal,
-            FROM-GLC, MapBiomas
+            7. Copy the entire JSON content and paste it as your API key below
             """
         case .copernicus: """
-            1. Register at Copernicus Data Space:
-               dataspace.copernicus.eu
-               (click "Register" in the top right)
+            1. [Register at Copernicus Data Space](https://dataspace.copernicus.eu) (click "Register" in the top right)
 
             2. Verify your email and log in
 
-            3. Go to your profile page:
-               dataspace.copernicus.eu/profile
+            3. Go to your [profile page](https://dataspace.copernicus.eu/profile)
 
             4. Scroll to "API Key" or "Access Tokens"
 
@@ -203,11 +186,17 @@ enum APIKeyProvider: String, CaseIterable, Sendable {
 
             6. Copy the token and paste it below
 
-            Note: Tokens may expire. If data stops loading,
-            generate a new token and update it here.
-
-            Used by: Copernicus Global Land Cover
+            Note: Tokens may expire. If data stops loading, generate a new token and update it here.
             """
+        }
+    }
+
+    var registrationHint: String {
+        switch self {
+        case .googleEarthEngine:
+            "You need a Google account. Earth Engine registration is free for research and non-commercial use."
+        case .copernicus:
+            "Registration is free. You will need to verify your email address before you can log in."
         }
     }
 

@@ -101,66 +101,118 @@ struct APIKeySetupView: View {
     @State private var isConfigured: Bool = false
     @State private var showDeleteConfirm = false
     @State private var showSavedToast = false
+    @State private var showKey = false
 
     var body: some View {
         Form {
+            // MARK: Status
             Section {
                 if isConfigured {
-                    Label("Configured", systemImage: "checkmark.circle.fill")
+                    Label("Key configured — ready to use", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                 } else {
-                    Label("Not Configured", systemImage: "xmark.circle")
-                        .foregroundStyle(.secondary)
+                    Label("No key stored — follow the steps below", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
                 }
+            } header: {
+                Text("Status")
+            } footer: {
+                Text("Used by: \(provider.usedBy)")
             }
 
-            Section("API Key") {
-                SecureField("Enter API key or token", text: $keyText)
-                    .textContentType(.password)
-                    .autocorrectionDisabled()
-                    #if !os(tvOS)
-                    .textInputAutocapitalization(.never)
-                    #endif
+            // MARK: Step 1
+            Section {
+                Link(destination: URL(string: provider.registrationURL)!) {
+                    Label("Open Registration Page", systemImage: "safari")
+                }
+            } header: {
+                Text("Step 1 — Create an Account")
+            } footer: {
+                Text(provider.registrationHint)
+            }
 
-                Button("Save Key") {
-                    if !keyText.isEmpty {
-                        let _ = KeychainService.save(key: keyText, for: provider)
-                        isConfigured = true
-                        keyText = ""
-                        showSavedToast = true
-                        onSave?()
+            // MARK: Step 2
+            Section {
+                Text((try? AttributedString(markdown: provider.instructions)) ?? AttributedString(provider.instructions))
+                    .font(.callout)
+                    .tint(.blue)
+                Link(destination: URL(string: provider.signupURL)!) {
+                    Label("Open Credentials Page", systemImage: "safari")
+                }
+            } header: {
+                Text("Step 2 — Generate API Key")
+            } footer: {
+                Text("Copy the key/token to your clipboard, then come back to this app.")
+            }
+
+            // MARK: Step 3
+            Section {
+                Text("After copying your key in Safari, switch back to this app and tap \"Paste from Clipboard\" below.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+
+                #if !os(tvOS)
+                if showKey {
+                    TextField("Paste your API key here", text: $keyText, axis: .vertical)
+                        .lineLimit(1...6)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .font(.system(.callout, design: .monospaced))
+                } else {
+                    SecureField("Paste your API key here", text: $keyText)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                }
+
+                Toggle("Show key text", isOn: $showKey)
+                    .font(.callout)
+                #else
+                TextField("Paste your API key here", text: $keyText, axis: .vertical)
+                    .lineLimit(1...6)
+                    .autocorrectionDisabled()
+                    .font(.system(.callout, design: .monospaced))
+                #endif
+
+                Button {
+                    if let pasted = UIPasteboard.general.string, !pasted.isEmpty {
+                        keyText = pasted
                     }
+                } label: {
+                    Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
+                }
+
+                Button {
+                    guard !keyText.isEmpty else { return }
+                    let _ = KeychainService.save(key: keyText, for: provider)
+                    isConfigured = true
+                    keyText = ""
+                    showKey = false
+                    showSavedToast = true
+                    onSave?()
+                } label: {
+                    Label("Save Key to Keychain", systemImage: "square.and.arrow.down")
+                        .bold()
                 }
                 .disabled(keyText.isEmpty)
 
                 if isConfigured {
-                    Button("Delete Key", role: .destructive) {
+                    Button(role: .destructive) {
                         showDeleteConfirm = true
+                    } label: {
+                        Label("Delete Stored Key", systemImage: "trash")
                     }
                 }
+            } header: {
+                Text("Step 3 — Paste & Save")
+            } footer: {
+                Text("Your key is stored securely in the iOS Keychain and persists across app updates.")
             }
 
-            Section("Setup Instructions") {
-                Text(provider.instructions)
-                    .font(.callout)
-            }
-
-            Section("Quick Links") {
-                Link(destination: URL(string: provider.registrationURL)!) {
-                    Label("Register / Sign Up", systemImage: "person.badge.plus")
-                }
-                Link(destination: URL(string: provider.signupURL)!) {
-                    Label("Get API Key / Credentials", systemImage: "key")
-                }
+            // MARK: Help
+            Section("Documentation") {
                 Link(destination: URL(string: provider.documentationURL)!) {
                     Label("API Documentation", systemImage: "doc.text")
                 }
-            }
-
-            Section("Used By") {
-                Text(provider.usedBy)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
             }
         }
         .navigationTitle(provider.rawValue)
