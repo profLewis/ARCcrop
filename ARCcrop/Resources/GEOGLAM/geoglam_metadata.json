@@ -1,42 +1,56 @@
 {
-  "GEOGLAM_Maize": {
+  "GEOGLAM_MajorityCrop": {
     "width": 7200,
-    "height": 3600,
-    "minLon": -180.0,
-    "maxLon": 180.0,
-    "minLat": -89.99999999999994,
-    "maxLat": 90.00000000000006
-  },
-  "GEOGLAM_Soybean": {
-    "width": 7200,
-    "height": 3600,
-    "minLon": -180.0,
-    "maxLon": 180.0,
-    "minLat": -89.99999999999994,
-    "maxLat": 90.00000000000006
-  },
-  "GEOGLAM_WinterWheat": {
-    "width": 7200,
-    "height": 3600,
-    "minLon": -180.0,
-    "maxLon": 180.0,
-    "minLat": -89.99999999999991,
-    "maxLat": 90.00000000000009
-  },
-  "GEOGLAM_SpringWheat": {
-    "width": 7200,
-    "height": 3600,
-    "minLon": -180.0,
-    "maxLon": 180.0,
-    "minLat": -89.99999999999997,
-    "maxLat": 90.00000000000003
-  },
-  "GEOGLAM_Rice": {
-    "width": 7200,
-    "height": 3600,
+    "height": 7200,
     "minLon": -180.0,
     "maxLon": 180.0,
     "minLat": -90.0,
-    "maxLat": 90.0
+    "maxLat": 90.0,
+    "note": "Square PNG: Y axis covers 360° (-180..+180), data only in middle 180° (-90..+90)"
+  },
+  "GEOGLAM_Maize": {
+    "width": 7200,
+    "height": 7200,
+    "minLon": -180.0,
+    "maxLon": 180.0,
+    "minLat": -90.0,
+    "maxLat": 90.0,
+    "note": "Square PNG: Y axis covers 360° (-180..+180), data only in middle 180° (-90..+90)"
+  },
+  "GEOGLAM_Soybean": {
+    "width": 7200,
+    "height": 7200,
+    "minLon": -180.0,
+    "maxLon": 180.0,
+    "minLat": -90.0,
+    "maxLat": 90.0,
+    "note": "Square PNG: Y axis covers 360° (-180..+180), data only in middle 180° (-90..+90)"
+  },
+  "GEOGLAM_WinterWheat": {
+    "width": 7200,
+    "height": 7200,
+    "minLon": -180.0,
+    "maxLon": 180.0,
+    "minLat": -90.0,
+    "maxLat": 90.0,
+    "note": "Square PNG: Y axis covers 360° (-180..+180), data only in middle 180° (-90..+90)"
+  },
+  "GEOGLAM_SpringWheat": {
+    "width": 7200,
+    "height": 7200,
+    "minLon": -180.0,
+    "maxLon": 180.0,
+    "minLat": -90.0,
+    "maxLat": 90.0,
+    "note": "Square PNG: Y axis covers 360° (-180..+180), data only in middle 180° (-90..+90)"
+  },
+  "GEOGLAM_Rice": {
+    "width": 7200,
+    "height": 7200,
+    "minLon": -180.0,
+    "maxLon": 180.0,
+    "minLat": -90.0,
+    "maxLat": 90.0,
+    "note": "Square PNG: Y axis covers 360° (-180..+180), data only in middle 180° (-90..+90)"
   }
 }

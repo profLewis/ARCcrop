@@ -7,41 +7,60 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		004735250C5BED041B075599 /* CropCalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6067AE374012A63358FF922 /* CropCalendarService.swift */; };
+		02BAA1989C3501A903AD4935 /* GEOGLAM_Soybean_frac.png in Resources */ = {isa = PBXBuildFile; fileRef = 28DDD4F3B749748253687C5B /* GEOGLAM_Soybean_frac.png */; };
 		02C4058FA8AA12C10CD8D1C4 /* CropDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1AF05347F3D4DCB091942CB /* CropDashboardView.swift */; };
 		02D4D1F34E6173838ED004C0 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6235C3A2D68A2A4C0B3E5D73 /* AppSettings.swift */; };
 		03C071F1AE782A8846AA25E1 /* CropMapLegend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64EBB01C61BC104AF5E325CE /* CropMapLegend.swift */; };
 		082023C1B178EB50691EE037 /* CropCondition.swift in Sources */ = {isa = PBXBuildFile; fileRef = A62592A5CEF5A7B2AA356009 /* CropCondition.swift */; };
 		09284681B5F6BDD44F848A48 /* CropMapLegend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64EBB01C61BC104AF5E325CE /* CropMapLegend.swift */; };
+		09FB02486C707F5F9C22601E /* GEOGLAM_SpringWheat_frac.png in Resources */ = {isa = PBXBuildFile; fileRef = D71380BDB448C44815D043DD /* GEOGLAM_SpringWheat_frac.png */; };
 		0A596715593FD7ADB417F959 /* GEOGLAM_CropPicture.png in Resources */ = {isa = PBXBuildFile; fileRef = 238F2DB385A78DF247159F5A /* GEOGLAM_CropPicture.png */; };
+		16661C05714EB197BD13D485 /* sage_crop_calendars.json in Resources */ = {isa = PBXBuildFile; fileRef = E217FF8D7AFD66543B071A08 /* sage_crop_calendars.json */; };
 		1DBDED65E3F6F65EEF14CDD8 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A43D6DAEE383DB9E6A57CF9A /* LocationService.swift */; };
+		231940C4DB69B032B58C24BF /* GEOGLAM_Rice_frac.png in Resources */ = {isa = PBXBuildFile; fileRef = A2C4A91F7AF3E7F8234A4DFE /* GEOGLAM_Rice_frac.png */; };
 		265D8E1CAEFD9ED20B47B62D /* GEOGLAM_Maize.png in Resources */ = {isa = PBXBuildFile; fileRef = BDA648527309CFFAC4ED674E /* GEOGLAM_Maize.png */; };
 		26E08F532D084E6FA5A79E3A /* CropMapLegendView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF27FC3322FD043BE5ECED06 /* CropMapLegendView.swift */; };
+		291740ADF1BAC89621F55AAA /* CropCalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6067AE374012A63358FF922 /* CropCalendarService.swift */; };
 		2AE718868A08905AA216D62B /* CropMapOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 249DC0CB41CDD8F20BEE83FA /* CropMapOverlay.swift */; };
+		2AF000000000000000000001 /* PMTileOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AF000000000000000000010 /* PMTileOverlay.swift */; };
 		2B16844C6EDCC0FA91603763 /* GEOGLAM_WinterWheat.png in Resources */ = {isa = PBXBuildFile; fileRef = 9F7795F197E440CE4DC38545 /* GEOGLAM_WinterWheat.png */; };
 		30901924CDE25BB56BBEBCFE /* CropMapLegendView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF27FC3322FD043BE5ECED06 /* CropMapLegendView.swift */; };
 		3405EFF2013759CBFECC5FD2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEB298BCE9763881F0B149F1 /* ContentView.swift */; };
+		3A7B0E4E785579A630F8C51A /* GEOGLAM_MajorityCrop.png in Resources */ = {isa = PBXBuildFile; fileRef = C8765F560073AF4EBE43F40E /* GEOGLAM_MajorityCrop.png */; };
 		3C009DF5BB8BECD894C37569 /* CropMapPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14DF3A1379CAC14F1357EC79 /* CropMapPickerView.swift */; };
 		3EBAA6D97EC12083E631A21E /* GEOGLAMOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E941B98CCB7D23E2D172F70 /* GEOGLAMOverlay.swift */; };
 		3FB1961F25696940631B1900 /* GEOGLAM_WinterWheat.png in Resources */ = {isa = PBXBuildFile; fileRef = 9F7795F197E440CE4DC38545 /* GEOGLAM_WinterWheat.png */; };
+		40F1FBF30B17D81A7B919084 /* GEOGLAM_SpringWheat_frac.png in Resources */ = {isa = PBXBuildFile; fileRef = D71380BDB448C44815D043DD /* GEOGLAM_SpringWheat_frac.png */; };
+		4A206ADD488F05FEAC18D89C /* ActivityLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BFFC55A509E720EB88A1C0A /* ActivityLog.swift */; };
 		4BAA97431F6EC31A76157C8B /* EODataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 053C6DE2C87F81FD623047A5 /* EODataSource.swift */; };
 		4EE546D58CE37730F46266AE /* CropMapSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF12F880EF1F0103818148A3 /* CropMapSource.swift */; };
+		4F95E09171767075087391C2 /* GEOGLAM_Maize_frac.png in Resources */ = {isa = PBXBuildFile; fileRef = 3847DB144D3214CF6E6A178D /* GEOGLAM_Maize_frac.png */; };
 		5B89263A0587E6B2D42DA13D /* EODataSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 053C6DE2C87F81FD623047A5 /* EODataSource.swift */; };
+		5CA2989AE145DB02FAA2FFEE /* GEOGLAM_Soybean_frac.png in Resources */ = {isa = PBXBuildFile; fileRef = 28DDD4F3B749748253687C5B /* GEOGLAM_Soybean_frac.png */; };
 		5D49693DFF570E144FF48768 /* ARCcropApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E19365F5B372CB76216B908B /* ARCcropApp.swift */; };
 		5E4BE12CDADE3E134B05B068 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AFB81245A20B1B07E2D12D4 /* KeychainService.swift */; };
 		62E6D03C7D0CA1158D15AA0D /* CropMapSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF12F880EF1F0103818148A3 /* CropMapSource.swift */; };
 		7114FDF434B09617C94D2587 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AFB81245A20B1B07E2D12D4 /* KeychainService.swift */; };
 		775C5256FB00936A5DCBF883 /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 652673D194F0858ECEFA52F7 /* MapView.swift */; };
+		778E751F85B37F490315188D /* GEOGLAM_Rice_frac.png in Resources */ = {isa = PBXBuildFile; fileRef = A2C4A91F7AF3E7F8234A4DFE /* GEOGLAM_Rice_frac.png */; };
 		783E288E23ED851E13E91D87 /* GEOGLAM_SpringWheat.png in Resources */ = {isa = PBXBuildFile; fileRef = 5D8FB0DBC4B0C1709B5A4839 /* GEOGLAM_SpringWheat.png */; };
 		81EA1184710923C4FB9C877D /* GEOGLAM_Soybean.png in Resources */ = {isa = PBXBuildFile; fileRef = E938A2818451A0F80A9B03B6 /* GEOGLAM_Soybean.png */; };
+		8A19E50968E1B0B99BF72F09 /* sage_crop_calendars.json in Resources */ = {isa = PBXBuildFile; fileRef = E217FF8D7AFD66543B071A08 /* sage_crop_calendars.json */; };
 		8B0D02830DC1D64A986494E0 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6235C3A2D68A2A4C0B3E5D73 /* AppSettings.swift */; };
 		97A3FC041D2B60675E982D54 /* GEOGLAM_Rice.png in Resources */ = {isa = PBXBuildFile; fileRef = 43B36A1F88608FF4BF3F01B9 /* GEOGLAM_Rice.png */; };
 		A0D38B9A9F888D902C5B84CA /* geoglam_metadata.json in Resources */ = {isa = PBXBuildFile; fileRef = BBA203627615B937973C79D3 /* geoglam_metadata.json */; };
+		A1AC3CEAACBC16F75D0B85C4 /* GEOGLAM_WinterWheat_frac.png in Resources */ = {isa = PBXBuildFile; fileRef = 9EDE7D64503C61C04C4BC95A /* GEOGLAM_WinterWheat_frac.png */; };
 		A3F178E6923FCB87ED8C3C86 /* EODataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 284DB93155C961411320C11E /* EODataService.swift */; };
 		A80EB14EBE0EF69EF8D76EAD /* CropMapOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 249DC0CB41CDD8F20BEE83FA /* CropMapOverlay.swift */; };
+		A8F000000000000000000002 /* PMTileOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AF000000000000000000010 /* PMTileOverlay.swift */; };
 		AEA92858DEF2DAB903780311 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 78A9D698087489E800773B7D /* Assets.xcassets */; };
 		B28A5B2DAF1753AAF4229A3C /* GEOGLAM_Maize.png in Resources */ = {isa = PBXBuildFile; fileRef = BDA648527309CFFAC4ED674E /* GEOGLAM_Maize.png */; };
+		B4EBE3DD003DBD80F99C678B /* GEOGLAM_MajorityCrop.png in Resources */ = {isa = PBXBuildFile; fileRef = C8765F560073AF4EBE43F40E /* GEOGLAM_MajorityCrop.png */; };
 		B6B618825DA5822025321FA3 /* GEOGLAM_CropPicture.png in Resources */ = {isa = PBXBuildFile; fileRef = 238F2DB385A78DF247159F5A /* GEOGLAM_CropPicture.png */; };
 		BAB42B05C33E65CFEA59DE20 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54854DDB0FAB60C4A80B7F71 /* SettingsView.swift */; };
+		BC7D444129E3A0057A7F9B8D /* GEOGLAM_WinterWheat_frac.png in Resources */ = {isa = PBXBuildFile; fileRef = 9EDE7D64503C61C04C4BC95A /* GEOGLAM_WinterWheat_frac.png */; };
+		BFDECE3D5CEC323E5898B36B /* ActivityLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BFFC55A509E720EB88A1C0A /* ActivityLog.swift */; };
 		C8067AD21C29510F0C675B53 /* CropDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1AF05347F3D4DCB091942CB /* CropDashboardView.swift */; };
 		D1562F80585683D59FF9D630 /* GEOGLAMOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E941B98CCB7D23E2D172F70 /* GEOGLAMOverlay.swift */; };
 		D33B7A915AEAC64E34A01F38 /* GEOGLAM_Soybean.png in Resources */ = {isa = PBXBuildFile; fileRef = E938A2818451A0F80A9B03B6 /* GEOGLAM_Soybean.png */; };
@@ -52,9 +71,14 @@
 		D90591C948818D8BDF18AA24 /* CropMapPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14DF3A1379CAC14F1357EC79 /* CropMapPickerView.swift */; };
 		D90D613C0F9C865D62BF5CDF /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 652673D194F0858ECEFA52F7 /* MapView.swift */; };
 		D9E8F2C4205CB3C1DC83FDDF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54854DDB0FAB60C4A80B7F71 /* SettingsView.swift */; };
+		E17E126CFC5EDB95FAB24870 /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02672CF89F10154965C9B36 /* LogView.swift */; };
+		E52101E052473D2E7F5ABE91 /* GEOGLAM_CM4EW_Calendars_V1.4_active.json in Resources */ = {isa = PBXBuildFile; fileRef = 45EDEA906481AB3402B32DCD /* GEOGLAM_CM4EW_Calendars_V1.4_active.json */; };
 		E9C0A45156227629E799F10F /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEB298BCE9763881F0B149F1 /* ContentView.swift */; };
+		EE13035B6134EE95D2C3923A /* GEOGLAM_CM4EW_Calendars_V1.4_active.json in Resources */ = {isa = PBXBuildFile; fileRef = 45EDEA906481AB3402B32DCD /* GEOGLAM_CM4EW_Calendars_V1.4_active.json */; };
+		EEA2C5D91EC44264EA1C69B8 /* GEOGLAM_Maize_frac.png in Resources */ = {isa = PBXBuildFile; fileRef = 3847DB144D3214CF6E6A178D /* GEOGLAM_Maize_frac.png */; };
 		F2FBC75D5BE54C84F07ED660 /* CropCondition.swift in Sources */ = {isa = PBXBuildFile; fileRef = A62592A5CEF5A7B2AA356009 /* CropCondition.swift */; };
 		F45FA43BAE15BA7054D4474E /* ARCcropApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E19365F5B372CB76216B908B /* ARCcropApp.swift */; };
+		F856C6349A7C878758FD8E5B /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02672CF89F10154965C9B36 /* LogView.swift */; };
 		FA6EB382E015316D3E135772 /* GEOGLAM_Rice.png in Resources */ = {isa = PBXBuildFile; fileRef = 43B36A1F88608FF4BF3F01B9 /* GEOGLAM_Rice.png */; };
 		FD3D543A632D7475A86173D9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 78A9D698087489E800773B7D /* Assets.xcassets */; };
 /* End PBXBuildFile section */
@@ -66,16 +90,24 @@
 		14DF3A1379CAC14F1357EC79 /* CropMapPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropMapPickerView.swift; sourceTree = "<group>"; };
 		238F2DB385A78DF247159F5A /* GEOGLAM_CropPicture.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_CropPicture.png; sourceTree = "<group>"; };
 		249DC0CB41CDD8F20BEE83FA /* CropMapOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropMapOverlay.swift; sourceTree = "<group>"; };
+		2AF000000000000000000010 /* PMTileOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PMTileOverlay.swift; sourceTree = "<group>"; };
 		284DB93155C961411320C11E /* EODataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EODataService.swift; sourceTree = "<group>"; };
+		28DDD4F3B749748253687C5B /* GEOGLAM_Soybean_frac.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_Soybean_frac.png; sourceTree = "<group>"; };
+		3847DB144D3214CF6E6A178D /* GEOGLAM_Maize_frac.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_Maize_frac.png; sourceTree = "<group>"; };
 		3E941B98CCB7D23E2D172F70 /* GEOGLAMOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GEOGLAMOverlay.swift; sourceTree = "<group>"; };
 		43B36A1F88608FF4BF3F01B9 /* GEOGLAM_Rice.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_Rice.png; sourceTree = "<group>"; };
+		45EDEA906481AB3402B32DCD /* GEOGLAM_CM4EW_Calendars_V1.4_active.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = GEOGLAM_CM4EW_Calendars_V1.4_active.json; sourceTree = "<group>"; };
 		54854DDB0FAB60C4A80B7F71 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		5D8FB0DBC4B0C1709B5A4839 /* GEOGLAM_SpringWheat.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_SpringWheat.png; sourceTree = "<group>"; };
 		6235C3A2D68A2A4C0B3E5D73 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		64EBB01C61BC104AF5E325CE /* CropMapLegend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropMapLegend.swift; sourceTree = "<group>"; };
 		652673D194F0858ECEFA52F7 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
 		78A9D698087489E800773B7D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		8BFFC55A509E720EB88A1C0A /* ActivityLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityLog.swift; sourceTree = "<group>"; };
+		9EDE7D64503C61C04C4BC95A /* GEOGLAM_WinterWheat_frac.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_WinterWheat_frac.png; sourceTree = "<group>"; };
 		9F7795F197E440CE4DC38545 /* GEOGLAM_WinterWheat.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_WinterWheat.png; sourceTree = "<group>"; };
+		A02672CF89F10154965C9B36 /* LogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogView.swift; sourceTree = "<group>"; };
+		A2C4A91F7AF3E7F8234A4DFE /* GEOGLAM_Rice_frac.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_Rice_frac.png; sourceTree = "<group>"; };
 		A43D6DAEE383DB9E6A57CF9A /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		A62592A5CEF5A7B2AA356009 /* CropCondition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropCondition.swift; sourceTree = "<group>"; };
 		AF12F880EF1F0103818148A3 /* CropMapSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropMapSource.swift; sourceTree = "<group>"; };
@@ -84,8 +116,12 @@
 		BBA203627615B937973C79D3 /* geoglam_metadata.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = geoglam_metadata.json; sourceTree = "<group>"; };
 		BDA648527309CFFAC4ED674E /* GEOGLAM_Maize.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_Maize.png; sourceTree = "<group>"; };
 		C1AF05347F3D4DCB091942CB /* CropDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropDashboardView.swift; sourceTree = "<group>"; };
+		C8765F560073AF4EBE43F40E /* GEOGLAM_MajorityCrop.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_MajorityCrop.png; sourceTree = "<group>"; };
 		CEB298BCE9763881F0B149F1 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		D71380BDB448C44815D043DD /* GEOGLAM_SpringWheat_frac.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_SpringWheat_frac.png; sourceTree = "<group>"; };
 		E19365F5B372CB76216B908B /* ARCcropApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARCcropApp.swift; sourceTree = "<group>"; };
+		E217FF8D7AFD66543B071A08 /* sage_crop_calendars.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = sage_crop_calendars.json; sourceTree = "<group>"; };
+		E6067AE374012A63358FF922 /* CropCalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropCalendarService.swift; sourceTree = "<group>"; };
 		E938A2818451A0F80A9B03B6 /* GEOGLAM_Soybean.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_Soybean.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -102,6 +138,7 @@
 		4B98826AF85DA90414588514 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				8BFFC55A509E720EB88A1C0A /* ActivityLog.swift */,
 				6235C3A2D68A2A4C0B3E5D73 /* AppSettings.swift */,
 				A62592A5CEF5A7B2AA356009 /* CropCondition.swift */,
 				64EBB01C61BC104AF5E325CE /* CropMapLegend.swift */,
@@ -119,8 +156,10 @@
 				C1AF05347F3D4DCB091942CB /* CropDashboardView.swift */,
 				AF27FC3322FD043BE5ECED06 /* CropMapLegendView.swift */,
 				249DC0CB41CDD8F20BEE83FA /* CropMapOverlay.swift */,
+				2AF000000000000000000010 /* PMTileOverlay.swift */,
 				14DF3A1379CAC14F1357EC79 /* CropMapPickerView.swift */,
 				3E941B98CCB7D23E2D172F70 /* GEOGLAMOverlay.swift */,
+				A02672CF89F10154965C9B36 /* LogView.swift */,
 				652673D194F0858ECEFA52F7 /* MapView.swift */,
 				54854DDB0FAB60C4A80B7F71 /* SettingsView.swift */,
 			);
@@ -131,6 +170,7 @@
 		6D7E8D04CF94A09C8127E70A /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				E6067AE374012A63358FF922 /* CropCalendarService.swift */,
 				284DB93155C961411320C11E /* EODataService.swift */,
 				0AFB81245A20B1B07E2D12D4 /* KeychainService.swift */,
 				A43D6DAEE383DB9E6A57CF9A /* LocationService.swift */,
@@ -143,6 +183,7 @@
 			isa = PBXGroup;
 			children = (
 				78A9D698087489E800773B7D /* Assets.xcassets */,
+				DC7523FB73BB3C183E4DC0EB /* CropCalendars */,
 				70463C36F5B2A9976760FD38 /* GEOGLAM */,
 			);
 			name = Resources;
@@ -153,11 +194,17 @@
 			isa = PBXGroup;
 			children = (
 				238F2DB385A78DF247159F5A /* GEOGLAM_CropPicture.png */,
+				3847DB144D3214CF6E6A178D /* GEOGLAM_Maize_frac.png */,
 				BDA648527309CFFAC4ED674E /* GEOGLAM_Maize.png */,
+				C8765F560073AF4EBE43F40E /* GEOGLAM_MajorityCrop.png */,
 				BBA203627615B937973C79D3 /* geoglam_metadata.json */,
+				A2C4A91F7AF3E7F8234A4DFE /* GEOGLAM_Rice_frac.png */,
 				43B36A1F88608FF4BF3F01B9 /* GEOGLAM_Rice.png */,
+				28DDD4F3B749748253687C5B /* GEOGLAM_Soybean_frac.png */,
 				E938A2818451A0F80A9B03B6 /* GEOGLAM_Soybean.png */,
+				D71380BDB448C44815D043DD /* GEOGLAM_SpringWheat_frac.png */,
 				5D8FB0DBC4B0C1709B5A4839 /* GEOGLAM_SpringWheat.png */,
+				9EDE7D64503C61C04C4BC95A /* GEOGLAM_WinterWheat_frac.png */,
 				9F7795F197E440CE4DC38545 /* GEOGLAM_WinterWheat.png */,
 			);
 			path = GEOGLAM;
@@ -173,6 +220,31 @@
 				68A4257A4DEF036EE4413F3A /* Views */,
 				3BD24E08E39EC715910F587C /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		ACE9DA29622AC87CD07FF75D /* GEOGLAM */ = {
+			isa = PBXGroup;
+			children = (
+				45EDEA906481AB3402B32DCD /* GEOGLAM_CM4EW_Calendars_V1.4_active.json */,
+			);
+			path = GEOGLAM;
+			sourceTree = "<group>";
+		};
+		BC62C9D3F83527F6EBE82CBC /* SAGE */ = {
+			isa = PBXGroup;
+			children = (
+				E217FF8D7AFD66543B071A08 /* sage_crop_calendars.json */,
+			);
+			path = SAGE;
+			sourceTree = "<group>";
+		};
+		DC7523FB73BB3C183E4DC0EB /* CropCalendars */ = {
+			isa = PBXGroup;
+			children = (
+				ACE9DA29622AC87CD07FF75D /* GEOGLAM */,
+				BC62C9D3F83527F6EBE82CBC /* SAGE */,
+			);
+			path = CropCalendars;
 			sourceTree = "<group>";
 		};
 		F2C5D51FD88FB3D9272BD4E5 /* App */ = {
@@ -268,13 +340,21 @@
 			buildActionMask = 2147483647;
 			files = (
 				AEA92858DEF2DAB903780311 /* Assets.xcassets in Resources */,
+				E52101E052473D2E7F5ABE91 /* GEOGLAM_CM4EW_Calendars_V1.4_active.json in Resources */,
 				0A596715593FD7ADB417F959 /* GEOGLAM_CropPicture.png in Resources */,
 				B28A5B2DAF1753AAF4229A3C /* GEOGLAM_Maize.png in Resources */,
+				EEA2C5D91EC44264EA1C69B8 /* GEOGLAM_Maize_frac.png in Resources */,
+				3A7B0E4E785579A630F8C51A /* GEOGLAM_MajorityCrop.png in Resources */,
 				97A3FC041D2B60675E982D54 /* GEOGLAM_Rice.png in Resources */,
+				778E751F85B37F490315188D /* GEOGLAM_Rice_frac.png in Resources */,
 				81EA1184710923C4FB9C877D /* GEOGLAM_Soybean.png in Resources */,
+				02BAA1989C3501A903AD4935 /* GEOGLAM_Soybean_frac.png in Resources */,
 				D610CFC6DBA639CBB34BC48D /* GEOGLAM_SpringWheat.png in Resources */,
+				09FB02486C707F5F9C22601E /* GEOGLAM_SpringWheat_frac.png in Resources */,
 				2B16844C6EDCC0FA91603763 /* GEOGLAM_WinterWheat.png in Resources */,
+				BC7D444129E3A0057A7F9B8D /* GEOGLAM_WinterWheat_frac.png in Resources */,
 				A0D38B9A9F888D902C5B84CA /* geoglam_metadata.json in Resources */,
+				8A19E50968E1B0B99BF72F09 /* sage_crop_calendars.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -283,13 +363,21 @@
 			buildActionMask = 2147483647;
 			files = (
 				FD3D543A632D7475A86173D9 /* Assets.xcassets in Resources */,
+				EE13035B6134EE95D2C3923A /* GEOGLAM_CM4EW_Calendars_V1.4_active.json in Resources */,
 				B6B618825DA5822025321FA3 /* GEOGLAM_CropPicture.png in Resources */,
 				265D8E1CAEFD9ED20B47B62D /* GEOGLAM_Maize.png in Resources */,
+				4F95E09171767075087391C2 /* GEOGLAM_Maize_frac.png in Resources */,
+				B4EBE3DD003DBD80F99C678B /* GEOGLAM_MajorityCrop.png in Resources */,
 				FA6EB382E015316D3E135772 /* GEOGLAM_Rice.png in Resources */,
+				231940C4DB69B032B58C24BF /* GEOGLAM_Rice_frac.png in Resources */,
 				D33B7A915AEAC64E34A01F38 /* GEOGLAM_Soybean.png in Resources */,
+				5CA2989AE145DB02FAA2FFEE /* GEOGLAM_Soybean_frac.png in Resources */,
 				783E288E23ED851E13E91D87 /* GEOGLAM_SpringWheat.png in Resources */,
+				40F1FBF30B17D81A7B919084 /* GEOGLAM_SpringWheat_frac.png in Resources */,
 				3FB1961F25696940631B1900 /* GEOGLAM_WinterWheat.png in Resources */,
+				A1AC3CEAACBC16F75D0B85C4 /* GEOGLAM_WinterWheat_frac.png in Resources */,
 				D5A866E693073229E9987E2E /* geoglam_metadata.json in Resources */,
+				16661C05714EB197BD13D485 /* sage_crop_calendars.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -301,13 +389,16 @@
 			buildActionMask = 2147483647;
 			files = (
 				5D49693DFF570E144FF48768 /* ARCcropApp.swift in Sources */,
+				BFDECE3D5CEC323E5898B36B /* ActivityLog.swift in Sources */,
 				02D4D1F34E6173838ED004C0 /* AppSettings.swift in Sources */,
 				E9C0A45156227629E799F10F /* ContentView.swift in Sources */,
+				291740ADF1BAC89621F55AAA /* CropCalendarService.swift in Sources */,
 				F2FBC75D5BE54C84F07ED660 /* CropCondition.swift in Sources */,
 				02C4058FA8AA12C10CD8D1C4 /* CropDashboardView.swift in Sources */,
 				09284681B5F6BDD44F848A48 /* CropMapLegend.swift in Sources */,
 				26E08F532D084E6FA5A79E3A /* CropMapLegendView.swift in Sources */,
 				2AE718868A08905AA216D62B /* CropMapOverlay.swift in Sources */,
+				2AF000000000000000000001 /* PMTileOverlay.swift in Sources */,
 				3C009DF5BB8BECD894C37569 /* CropMapPickerView.swift in Sources */,
 				62E6D03C7D0CA1158D15AA0D /* CropMapSource.swift in Sources */,
 				D649D82550E45FDE8C637C3D /* EODataService.swift in Sources */,
@@ -315,6 +406,7 @@
 				D1562F80585683D59FF9D630 /* GEOGLAMOverlay.swift in Sources */,
 				7114FDF434B09617C94D2587 /* KeychainService.swift in Sources */,
 				D3D04733764EF7CC440FCEEC /* LocationService.swift in Sources */,
+				F856C6349A7C878758FD8E5B /* LogView.swift in Sources */,
 				D90D613C0F9C865D62BF5CDF /* MapView.swift in Sources */,
 				BAB42B05C33E65CFEA59DE20 /* SettingsView.swift in Sources */,
 			);
@@ -325,13 +417,16 @@
 			buildActionMask = 2147483647;
 			files = (
 				F45FA43BAE15BA7054D4474E /* ARCcropApp.swift in Sources */,
+				4A206ADD488F05FEAC18D89C /* ActivityLog.swift in Sources */,
 				8B0D02830DC1D64A986494E0 /* AppSettings.swift in Sources */,
 				3405EFF2013759CBFECC5FD2 /* ContentView.swift in Sources */,
+				004735250C5BED041B075599 /* CropCalendarService.swift in Sources */,
 				082023C1B178EB50691EE037 /* CropCondition.swift in Sources */,
 				C8067AD21C29510F0C675B53 /* CropDashboardView.swift in Sources */,
 				03C071F1AE782A8846AA25E1 /* CropMapLegend.swift in Sources */,
 				30901924CDE25BB56BBEBCFE /* CropMapLegendView.swift in Sources */,
 				A80EB14EBE0EF69EF8D76EAD /* CropMapOverlay.swift in Sources */,
+				A8F000000000000000000002 /* PMTileOverlay.swift in Sources */,
 				D90591C948818D8BDF18AA24 /* CropMapPickerView.swift in Sources */,
 				4EE546D58CE37730F46266AE /* CropMapSource.swift in Sources */,
 				A3F178E6923FCB87ED8C3C86 /* EODataService.swift in Sources */,
@@ -339,6 +434,7 @@
 				3EBAA6D97EC12083E631A21E /* GEOGLAMOverlay.swift in Sources */,
 				5E4BE12CDADE3E134B05B068 /* KeychainService.swift in Sources */,
 				1DBDED65E3F6F65EEF14CDD8 /* LocationService.swift in Sources */,
+				E17E126CFC5EDB95FAB24870 /* LogView.swift in Sources */,
 				775C5256FB00936A5DCBF883 /* MapView.swift in Sources */,
 				D9E8F2C4205CB3C1DC83FDDF /* SettingsView.swift in Sources */,
 			);

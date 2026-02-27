@@ -39,6 +39,26 @@ struct SettingsView: View {
                     Text("GEOGLAM and USDA CDL require no API keys.")
                 }
 
+                #if !os(tvOS)
+                Section("Tile Cache") {
+                    @Bindable var settings = settings
+                    HStack {
+                        Text("Disk limit")
+                        Spacer()
+                        Stepper(settings.cacheSizeMB >= 1024 ? String(format: "%.1f GB", Double(settings.cacheSizeMB) / 1024) : "\(settings.cacheSizeMB) MB",
+                                value: $settings.cacheSizeMB, in: 256...5120, step: 256)
+                    }
+                    let usedMB = Double(WMSTileOverlay.tileCache.currentDiskUsage) / (1024 * 1024)
+                    let capMB = Double(WMSTileOverlay.tileCache.diskCapacity) / (1024 * 1024)
+                    LabeledContent("Disk usage", value: String(format: "%.1f / %.0f MB", usedMB, capMB))
+                    let memMB = Double(WMSTileOverlay.tileCache.currentMemoryUsage) / (1024 * 1024)
+                    LabeledContent("Memory usage", value: String(format: "%.1f MB", memMB))
+                    Button("Clear Cache") {
+                        WMSTileOverlay.tileCache.removeAllCachedResponses()
+                    }
+                }
+                #endif
+
                 Section("About") {
                     LabeledContent("Version", value: "0.1.0")
                     LabeledContent("Build", value: "1")
