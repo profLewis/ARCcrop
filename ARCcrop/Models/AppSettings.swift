@@ -76,6 +76,15 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(showFTWBoundaries, forKey: "showFTWBoundaries") }
     }
 
+    /// FAO Crop Calendar API language code (en, fr, es, ar, zh, ru)
+    var faoLanguage: String = "en" {
+        didSet {
+            UserDefaults.standard.set(faoLanguage, forKey: "faoLanguage")
+            // Invalidate cached crop/country lists when language changes
+            FAOCropCalendarService.invalidateCache()
+        }
+    }
+
     /// Legacy global overlay opacity — reads/writes focused layer
     var overlayOpacity: Double {
         get { opacity(for: focusedCropMap) }
@@ -167,6 +176,9 @@ final class AppSettings {
         self.showPoliticalBoundaries = UserDefaults.standard.bool(forKey: "showPoliticalBoundaries")
         self.showMasterMap = UserDefaults.standard.bool(forKey: "showMasterMap")
         self.showFTWBoundaries = UserDefaults.standard.bool(forKey: "showFTWBoundaries")
+        if let lang = UserDefaults.standard.string(forKey: "faoLanguage"), !lang.isEmpty {
+            self.faoLanguage = lang
+        }
         self.autoBestMap = UserDefaults.standard.bool(forKey: "autoBestMap")
         if UserDefaults.standard.object(forKey: "allowMultipleLayers") != nil {
             self.allowMultipleLayers = UserDefaults.standard.bool(forKey: "allowMultipleLayers")
