@@ -354,7 +354,7 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .worldCereal, .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals: 2021...2021
         case .copernicusLandCover: 2015...2019
         case .fromGLC: 2017...2020
-        case .mapBiomas: 2000...2020
+        case .mapBiomas: nil
         }
     }
 

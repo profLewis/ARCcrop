@@ -368,12 +368,11 @@ enum CropMapOverlayFactory {
     static func sourceParams(for source: CropMapSource) -> WMSSourceParams? {
         switch source {
         case .usdaCDL(year: let year):
+            let pmtilesBase = "pmtiles://raw.githubusercontent.com/profLewis/ARCcrop/main/tiles"
             return WMSSourceParams(
                 identifier: source.id,
-                tileURLTemplate: wmsTemplate(
-                    baseURL: "https://nassgeodata.gmu.edu/CropScapeService/wms_cdlall.cgi",
-                    layers: "cdl_\(year)"),
-                minZoom: 0, maxZoom: 17, needs4326: true)
+                tileURLTemplate: "\(pmtilesBase)/usda_cdl_\(year).pmtiles/{z}/{x}/{y}",
+                minZoom: 0, maxZoom: 8, needs4326: false)
 
         case .jrcEUCropMap(year: let year):
             return WMSSourceParams(
@@ -611,13 +610,12 @@ enum CropMapOverlayFactory {
                     wmsVersion: "1.3.0"),
                 minZoom: 0, maxZoom: 17, needs4326: false)
 
-        case .mapBiomas(let year):
-            let clampedYear = min(max(year, 2000), 2020)
+        case .mapBiomas:
             return WMSSourceParams(
                 identifier: source.id,
                 tileURLTemplate: wmsTemplate(
                     baseURL: "http://azure.solved.eco.br:8080/geoserver/solved/wms",
-                    layers: "mapbiomas_\(clampedYear)",
+                    layers: "mapbiomas",
                     styles: "solved:mapbiomas_legend"),
                 minZoom: 0, maxZoom: 14, needs4326: false)
 

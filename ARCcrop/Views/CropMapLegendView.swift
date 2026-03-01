@@ -166,7 +166,7 @@ struct CropMapLegendView: View {
     }
 }
 
-// MARK: - Multi-legend container (separate collapsible legends, draggable panel)
+// MARK: - Multi-legend container (separate collapsible legends, draggable)
 
 struct MultiLegendView: View {
     @Environment(AppSettings.self) private var settings
@@ -181,7 +181,7 @@ struct MultiLegendView: View {
         }
     }
 
-    /// Drag gesture for moving the panel
+    /// Drag gesture for moving the whole panel
     private var panelDrag: some Gesture {
         DragGesture()
             .onChanged { panelOffset = $0.translation }
@@ -196,30 +196,15 @@ struct MultiLegendView: View {
 
     var body: some View {
         if !visibleLegends.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                // Drag handle — always visible, easy to grip
-                HStack {
-                    Spacer()
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(.secondary.opacity(0.5))
-                        .frame(width: 36, height: 4)
-                    Spacer()
-                }
-                .padding(.top, 6)
-                .padding(.bottom, 2)
-                .contentShape(Rectangle())
-                .gesture(panelDrag)
-
-                // Each active dataset gets its own collapsible legend
+            VStack(alignment: .leading, spacing: 2) {
                 ForEach(visibleLegends, id: \.source.id) { item in
                     let yr = item.source.availableYears != nil ? item.source.currentYear : nil
                     LegendCard(source: item.source, legendData: item.data, year: yr)
                 }
             }
-            .padding(.horizontal, 4)
-            .padding(.bottom, 4)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .fixedSize()
+            .contentShape(Rectangle())
+            .gesture(panelDrag)
             .offset(x: panelOffset.width + panelSaved.width,
                     y: panelOffset.height + panelSaved.height)
         }
@@ -246,14 +231,13 @@ struct LegendCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header: chevron + name + close button
-            HStack(spacing: 4) {
+            HStack(spacing: 3) {
                 Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                    .font(.caption2.bold())
+                    .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(.secondary)
                 Text(headerText)
                     .font(.system(size: 10, weight: .semibold))
                     .lineLimit(1)
-                Spacer()
                 Button {
                     settings.activeCropMaps.removeAll { $0.id == source.id }
                     settings.hiddenClasses = []
@@ -261,14 +245,14 @@ struct LegendCard: View {
                         settings.focusedLayerIndex = max(0, settings.activeCropMaps.count - 1)
                     }
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 12))
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 6)
-            .frame(minHeight: 28)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 3)
             .contentShape(Rectangle())
             .onTapGesture {
                 withAnimation(.easeInOut(duration: 0.2)) {
@@ -286,7 +270,7 @@ struct LegendCard: View {
 
             if isExpanded {
                 let columns = legendData.entries.count > 12 ? 2 : 1
-                let rowHeight: CGFloat = 22
+                let rowHeight: CGFloat = 20
                 let rows = columns == 1 ? legendData.entries.count : (legendData.entries.count + 1) / 2
                 let contentHeight = CGFloat(rows) * rowHeight
                 let maxH: CGFloat = 200
@@ -301,8 +285,8 @@ struct LegendCard: View {
                 }
             }
         }
-        .padding(4)
-        .background(Color.secondary.opacity(0.08))
+        .padding(3)
+        .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .sheet(item: $editingEntry) { entry in
             LegendEntryEditor(
@@ -387,7 +371,7 @@ struct LegendCard: View {
                     .foregroundStyle(isHidden ? .secondary : .primary)
                     .lineLimit(1)
             }
-            .frame(minHeight: 22)
+            .frame(minHeight: 20)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

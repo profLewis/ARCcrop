@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		PMTILES002 /* PMTilesSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = PMTILES001 /* PMTilesSource.swift */; };
+		PMTILES003 /* PMTilesSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = PMTILES001 /* PMTilesSource.swift */; };
 		004735250C5BED041B075599 /* CropCalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6067AE374012A63358FF922 /* CropCalendarService.swift */; };
 		02BAA1989C3501A903AD4935 /* GEOGLAM_Soybean_frac.png in Resources */ = {isa = PBXBuildFile; fileRef = 28DDD4F3B749748253687C5B /* GEOGLAM_Soybean_frac.png */; };
 		02C4058FA8AA12C10CD8D1C4 /* CropDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1AF05347F3D4DCB091942CB /* CropDashboardView.swift */; };
@@ -111,6 +113,7 @@
 		A43D6DAEE383DB9E6A57CF9A /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		A62592A5CEF5A7B2AA356009 /* CropCondition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropCondition.swift; sourceTree = "<group>"; };
 		AF12F880EF1F0103818148A3 /* CropMapSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropMapSource.swift; sourceTree = "<group>"; };
+				PMTILES001 /* PMTilesSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PMTilesSource.swift; sourceTree = "<group>"; };
 		AF27FC3322FD043BE5ECED06 /* CropMapLegendView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropMapLegendView.swift; sourceTree = "<group>"; };
 		B36B66DF0B9C55CDCB83FEED /* ARCcropTV.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ARCcropTV.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBA203627615B937973C79D3 /* geoglam_metadata.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = geoglam_metadata.json; sourceTree = "<group>"; };
@@ -155,6 +158,7 @@
 				CEB298BCE9763881F0B149F1 /* ContentView.swift */,
 				C1AF05347F3D4DCB091942CB /* CropDashboardView.swift */,
 				AF27FC3322FD043BE5ECED06 /* CropMapLegendView.swift */,
+				PMTILES001 /* PMTilesSource.swift */,
 				249DC0CB41CDD8F20BEE83FA /* CropMapOverlay.swift */,
 
 				14DF3A1379CAC14F1357EC79 /* CropMapPickerView.swift */,
@@ -393,6 +397,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				PMTILES002 /* PMTilesSource.swift in Sources */,
 				5D49693DFF570E144FF48768 /* ARCcropApp.swift in Sources */,
 				BFDECE3D5CEC323E5898B36B /* ActivityLog.swift in Sources */,
 				02D4D1F34E6173838ED004C0 /* AppSettings.swift in Sources */,
@@ -421,6 +426,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				PMTILES003 /* PMTilesSource.swift in Sources */,
 				F45FA43BAE15BA7054D4474E /* ARCcropApp.swift in Sources */,
 				4A206ADD488F05FEAC18D89C /* ActivityLog.swift in Sources */,
 				8B0D02830DC1D64A986494E0 /* AppSettings.swift in Sources */,

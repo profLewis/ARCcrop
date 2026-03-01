@@ -617,7 +617,7 @@ struct LayerOpacityControl: View {
 final class MapLibreNetworkDelegate: NSObject, MLNNetworkConfigurationDelegate {
     func session(for configuration: MLNNetworkConfiguration) -> URLSession {
         let config = URLSessionConfiguration.default
-        config.protocolClasses = [WMSTileURLProtocol.self] + (config.protocolClasses ?? [])
+        config.protocolClasses = [WMSTileURLProtocol.self, PMTilesURLProtocol.self] + (config.protocolClasses ?? [])
         config.urlCache = URLCache(memoryCapacity: 128 * 1024 * 1024, diskCapacity: 1024 * 1024 * 1024)
         config.requestCachePolicy = .returnCacheDataElseLoad
         return URLSession(configuration: config)
@@ -711,6 +711,7 @@ struct MapContainerView: UIViewRepresentable {
         }
         // Also register globally (for URLSession.shared fallback)
         URLProtocol.registerClass(WMSTileURLProtocol.self)
+        URLProtocol.registerClass(PMTilesURLProtocol.self)
 
         let styleURL = Self.writeStyleJSON(mapStyle: mapStyle)
         let mapView = MLNMapView(frame: .zero, styleURL: styleURL)
