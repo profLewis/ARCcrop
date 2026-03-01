@@ -802,15 +802,22 @@ struct MapContainerView: UIViewRepresentable {
             return
         }
 
-        // Filter changed only (class toggle) — update existing layers in-place
+        // Filter changed (class toggle) or data sources changed — rebuild layers
         if filterChanged && !sourcesChanged {
             coord.currentHidden = hiddenClasses
 
-            // Update GEOGLAM image sources in-place
-            for source in activeCropMaps {
-                let sourceId = "src-\(source.id)"
+            // Try in-place update for GEOGLAM sources (avoids full reload)
+            var geoglamUpdated = false
+            let hasOnlyGeoglam = activeCropMaps.allSatisfy { source in
                 switch source {
-                case .geoglamMajorityCrop, .geoglam:
+                case .geoglamMajorityCrop, .geoglam, .none: return true
+                default: return false
+                }
+            }
+
+            if hasOnlyGeoglam {
+                for source in activeCropMaps {
+                    let sourceId = "src-\(source.id)"
                     if let imgSource = style.source(withIdentifier: sourceId) as? MLNImageSource {
                         var image: UIImage?
                         switch source {
@@ -829,23 +836,14 @@ struct MapContainerView: UIViewRepresentable {
                                 }
                             }
                             imgSource.image = img
+                            geoglamUpdated = true
                         }
                     }
-                default:
-                    // WMS sources — need to rebuild with new filter URL
-                    break
                 }
             }
 
-            // For WMS sources, check if any need filter update
-            let wmsNeedsUpdate = activeCropMaps.contains { source in
-                switch source {
-                case .geoglamMajorityCrop, .geoglam, .none: return false
-                default: return true
-                }
-            }
-            if wmsNeedsUpdate {
-                // Remove and re-add WMS layers with updated filter
+            if !geoglamUpdated {
+                // Full rebuild needed (WMS sources need new filter URL)
                 coord.removeAllDataLayers(style: style)
                 ActivityLog.shared.resetTileProgress()
                 coord.addDataLayers(style: style)

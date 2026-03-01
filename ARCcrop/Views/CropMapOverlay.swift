@@ -378,7 +378,7 @@ enum CropMapOverlayFactory {
             return WMSSourceParams(
                 identifier: source.id,
                 tileURLTemplate: "http://\(PMTilesURLProtocol.proxyHost)/{z}/{x}/{y}/usda_cdl_\(year).pmtiles",
-                minZoom: 0, maxZoom: 8, needs4326: false)
+                minZoom: 4, maxZoom: 8, needs4326: false)
 
         case .jrcEUCropMap(year: let year):
             return WMSSourceParams(
