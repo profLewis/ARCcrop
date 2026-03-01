@@ -58,6 +58,77 @@ final class PMTilesURLProtocol: URLProtocol {
 
     override func stopLoading() {}
 
+    // MARK: - Static entry point (called from WMSTileURLProtocol)
+
+    /// Serve a PMTiles tile on behalf of another URLProtocol instance.
+    static func serveTile(for request: URLRequest, client: URLProtocolClient?, protocol proto: URLProtocol) {
+        guard let url = request.url else {
+            client?.urlProtocol(proto, didFailWithError: NSError(
+                domain: "PMTilesURLProtocol", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "No URL"]))
+            return
+        }
+
+        let parts = url.pathComponents.filter { $0 != "/" }
+        guard parts.count >= 4,
+              let z = Int(parts[0]), let x = Int(parts[1]), let y = Int(parts[2]) else {
+            client?.urlProtocol(proto, didFailWithError: NSError(
+                domain: "PMTilesURLProtocol", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid PMTiles URL: \(url.path)"]))
+            return
+        }
+        let filename = parts[3]
+
+        guard let archive = loadArchiveStatic(named: filename) else {
+            client?.urlProtocol(proto, didFailWithError: NSError(
+                domain: "PMTilesURLProtocol", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "PMTiles archive not found: \(filename)"]))
+            return
+        }
+
+        let tileID = PMTilesLocalArchive.zxyToTileID(z: z, x: x, y: y)
+
+        let tileData: Data
+        if let data = archive.readTile(id: tileID) {
+            tileData = data
+        } else {
+            // Empty transparent PNG
+            tileData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAABJRUFUeJxjYAAAAAMAAUbRyNIAAAAASUVORK5CYII=")!
+        }
+
+        let headers: [String: String] = [
+            "Content-Type": "image/png",
+            "Content-Length": "\(tileData.count)",
+            "Cache-Control": "max-age=31536000"
+        ]
+        if let resp = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: headers) {
+            client?.urlProtocol(proto, didReceive: resp, cacheStoragePolicy: .allowed)
+        }
+        client?.urlProtocol(proto, didLoad: tileData)
+        client?.urlProtocolDidFinishLoading(proto)
+    }
+
+    private static func loadArchiveStatic(named filename: String) -> PMTilesLocalArchive? {
+        archiveLock.lock()
+        if let cached = archiveCache[filename] {
+            archiveLock.unlock()
+            return cached
+        }
+        archiveLock.unlock()
+
+        let name = (filename as NSString).deletingPathExtension
+        guard let fileURL = Bundle.main.url(forResource: name, withExtension: "pmtiles"),
+              let data = try? Data(contentsOf: fileURL, options: .mappedIfSafe) else {
+            return nil
+        }
+        guard let archive = PMTilesLocalArchive(data: data) else { return nil }
+
+        archiveLock.lock()
+        archiveCache[filename] = archive
+        archiveLock.unlock()
+        return archive
+    }
+
     private func returnEmpty() {
         let empty = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAABJRUFUeJxjYAAAAAMAAUbRyNIAAAAASUVORK5CYII=")!
         let headers: [String: String] = ["Content-Type": "image/png", "Content-Length": "\(empty.count)"]

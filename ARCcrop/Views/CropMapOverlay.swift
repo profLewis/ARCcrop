@@ -40,7 +40,8 @@ final class WMSTileURLProtocol: URLProtocol, @unchecked Sendable {
     }()
 
     override class func canInit(with request: URLRequest) -> Bool {
-        request.url?.host == proxyHost
+        let host = request.url?.host
+        return host == proxyHost || host == PMTilesURLProtocol.proxyHost
     }
 
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -48,6 +49,12 @@ final class WMSTileURLProtocol: URLProtocol, @unchecked Sendable {
     override func startLoading() {
         guard let url = request.url else {
             fail(msg: "No URL")
+            return
+        }
+
+        // Delegate to PMTilesURLProtocol for pmtiles requests
+        if url.host == PMTilesURLProtocol.proxyHost {
+            PMTilesURLProtocol.serveTile(for: request, client: client, protocol: self)
             return
         }
 
