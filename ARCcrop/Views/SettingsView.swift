@@ -51,6 +51,7 @@ struct SettingsView: View {
                         Stepper(settings.cacheSizeMB >= 1024 ? String(format: "%.1f GB", Double(settings.cacheSizeMB) / 1024) : "\(settings.cacheSizeMB) MB",
                                 value: $settings.cacheSizeMB, in: 256...5120, step: 256)
                     }
+                    CacheUsageRow()
                     Button("Clear Cache") {
                         MLNOfflineStorage.shared.resetDatabase { error in
                             if let error {
@@ -59,6 +60,10 @@ struct SettingsView: View {
                                 ActivityLog.shared.success("Tile cache cleared")
                             }
                         }
+                        // Also clear URLCache
+                        URLCache.shared.removeAllCachedResponses()
+                        // Trigger refresh
+                        NotificationCenter.default.post(name: .cacheSizeChanged, object: nil)
                     }
                 }
                 #endif
@@ -395,6 +400,54 @@ struct APIKeySetupView: View {
         isConfigured = true
         showSavedToast = true
         onSave?()
+    }
+}
+
+// MARK: - Cache usage display
+
+extension Notification.Name {
+    static let cacheSizeChanged = Notification.Name("cacheSizeChanged")
+}
+
+struct CacheUsageRow: View {
+    @State private var usageMB: Double = 0
+    @State private var refreshToken = UUID()
+
+    var body: some View {
+        HStack {
+            Text("In use")
+            Spacer()
+            Text(formatSize(usageMB))
+                .foregroundStyle(.secondary)
+        }
+        .onAppear { refreshUsage() }
+        .onReceive(NotificationCenter.default.publisher(for: .cacheSizeChanged)) { _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { refreshUsage() }
+        }
+    }
+
+    private func refreshUsage() {
+        // URLCache usage
+        let urlCacheMB = Double(URLCache.shared.currentDiskUsage) / (1024 * 1024)
+
+        // MapLibre ambient cache: check file size on disk
+        let mlnCacheMB: Double
+        if let cachesDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+            let dbPath = cachesDir.appendingPathComponent("cache.db")
+            let attrs = try? FileManager.default.attributesOfItem(atPath: dbPath.path)
+            let size = attrs?[.size] as? UInt64 ?? 0
+            mlnCacheMB = Double(size) / (1024 * 1024)
+        } else {
+            mlnCacheMB = 0
+        }
+
+        usageMB = urlCacheMB + mlnCacheMB
+    }
+
+    private func formatSize(_ mb: Double) -> String {
+        if mb < 1 { return "< 1 MB" }
+        if mb >= 1024 { return String(format: "%.1f GB", mb / 1024) }
+        return String(format: "%.0f MB", mb)
     }
 }
 

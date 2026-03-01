@@ -106,15 +106,40 @@ final class WMSTileURLProtocol: URLProtocol, @unchecked Sendable {
         var req = URLRequest(url: realURL)
         req.cachePolicy = .returnCacheDataElseLoad
 
+        let fetchStart = CFAbsoluteTimeGetCurrent()
+        let sourceHost = realURL.host ?? "unknown"
+
         dataTask = Self.session.dataTask(with: req) { [weak self] data, response, error in
             guard let self else { return }
+            let elapsed = CFAbsoluteTimeGetCurrent() - fetchStart
+
             if let error {
                 self.client?.urlProtocol(self, didFailWithError: error)
+                Task { @MainActor in
+                    ActivityLog.shared.warn("\(sourceHost): failed (\(error.localizedDescription))")
+                }
                 return
             }
             guard var tileData = data else {
                 self.fail(msg: "No tile data")
                 return
+            }
+
+            // Determine if response came from cache
+            let httpResponse = response as? HTTPURLResponse
+            let fromCache = Self.session.configuration.urlCache?
+                .cachedResponse(for: req) != nil
+            let tileBytes = tileData.count
+            let sizeKB = Double(tileBytes) / 1024.0
+            let cacheLabel = fromCache ? "cache" : "network"
+            let status = httpResponse?.statusCode ?? 0
+
+            // Log tile fetch details
+            Task { @MainActor in
+                ActivityLog.shared.tileCompleted(bytes: tileBytes)
+                ActivityLog.shared.info(String(
+                    format: "%@ %dKB %.1fs [%@] %d",
+                    sourceHost, Int(sizeKB), elapsed, cacheLabel, status))
             }
 
             // Apply pixel filtering if needed

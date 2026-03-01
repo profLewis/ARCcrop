@@ -185,6 +185,28 @@ struct MultiLegendView: View {
     var body: some View {
         if !visibleLegends.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
+                // Single layer: show name + close button as header
+                if visibleLegends.count == 1, let item = visibleLegends.first {
+                    HStack {
+                        Text(item.source.sourceName)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Button {
+                            settings.activeCropMaps.removeAll()
+                            settings.hiddenClasses = []
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.top, 6)
+                    .padding(.bottom, 2)
+                }
+
                 // Tab bar — tap to focus, drag to reorder layers
                 if visibleLegends.count > 1 {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -236,19 +258,34 @@ struct MultiLegendView: View {
         let year = source.currentYear
         let showYear = (source.availableYears != nil && year > 0)
         let label = showYear ? "\(source.sourceName) \(year)" : source.sourceName
-        return Button {
-            if let idx = settings.activeCropMaps.firstIndex(where: { $0.id == source.id }) {
-                settings.focusedLayerIndex = idx
+        return HStack(spacing: 2) {
+            Button {
+                if let idx = settings.activeCropMaps.firstIndex(where: { $0.id == source.id }) {
+                    settings.focusedLayerIndex = idx
+                }
+            } label: {
+                Text(label)
+                    .font(.system(size: 9, weight: isFocused ? .bold : .regular))
             }
-        } label: {
-            Text(label)
-                .font(.system(size: 9, weight: isFocused ? .bold : .regular))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(isFocused ? Color.accentColor.opacity(0.3) : Color.secondary.opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
+            .buttonStyle(.plain)
+
+            Button {
+                settings.activeCropMaps.removeAll { $0.id == source.id }
+                settings.hiddenClasses = []
+                if settings.focusedLayerIndex >= settings.activeCropMaps.count {
+                    settings.focusedLayerIndex = max(0, settings.activeCropMaps.count - 1)
+                }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(isFocused ? Color.accentColor.opacity(0.3) : Color.secondary.opacity(0.15))
+        .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 }
 

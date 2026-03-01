@@ -51,7 +51,7 @@ final class GEOGLAMOverlayManager {
     private static func reprojectToMercator(_ sourceImage: UIImage) -> UIImage? {
         guard let cgImage = sourceImage.cgImage else { return nil }
         let srcW = cgImage.width, srcH = cgImage.height
-        let outSize = min(srcW, 4096)
+        let outSize = min(srcW, 2048)  // Keep small to avoid OOM on iPhone
 
         let srcLonMin = -180.0, srcLonMax = 180.0
         let srcLatMax = 90.0
