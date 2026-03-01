@@ -586,21 +586,6 @@ struct LayerOpacityControl: View {
 
     var body: some View {
         VStack(spacing: 2) {
-            if settings.activeCropMaps.count > 1 {
-                HStack(spacing: 3) {
-                    ForEach(Array(settings.activeCropMaps.enumerated()), id: \.element.id) { idx, _ in
-                        Circle()
-                            .fill(idx == settings.focusedLayerIndex ? Color.white : Color.white.opacity(0.4))
-                            .frame(width: 5, height: 5)
-                    }
-                }
-                Text(settings.focusedCropMap.sourceName)
-                    .font(.system(size: 7))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .frame(maxWidth: 50)
-            }
-
             Slider(value: Binding(
                 get: { settings.opacity(for: settings.focusedCropMap) },
                 set: { settings.layerOpacity[settings.focusedCropMap.id] = $0 }
@@ -927,7 +912,11 @@ struct MapContainerView: UIViewRepresentable {
                 }
 
                 guard let params = CropMapOverlayFactory.sourceParams(for: source) else {
-                    ActivityLog.shared.warn("\(source.sourceName): no WMS endpoint available")
+                    if source.requiresAPIKey {
+                        ActivityLog.shared.error("\(source.sourceName): requires API key — configure in Settings")
+                    } else {
+                        ActivityLog.shared.error("\(source.sourceName): no data endpoint available")
+                    }
                     continue
                 }
 

@@ -58,16 +58,28 @@ Comprehensive documentation for every dataset available in ARCcrop. Datasets are
 | **Spatial Resolution** | ~5.6 km (0.05 degrees) |
 | **Geographic Coverage** | Global |
 | **Temporal Coverage** | 2022 (single year) |
-| **Data Type** | Embedded raster (bundled PNG, reprojected on-device) |
+| **Data Type** | Pre-projected raster images hosted on GitHub |
 | **Classification** | 5 crops: Winter Wheat, Spring Wheat, Maize, Soybean, Rice |
 | **Access** | No API key required |
-| **Source** | Zenodo (DOI: 10.5281/zenodo.7230863) |
+| **Source** | Zenodo (DOI: [10.5281/zenodo.7230863](https://doi.org/10.5281/zenodo.7230863)) |
+| **Licence** | CC BY 4.0 |
 
 **Modes in app:**
 - **Majority Crop** -- shows the dominant crop at each grid cell using categorical colours
 - **Crop Proportion** (per crop) -- shows area fraction (0--100%) for each of the 5 crops using graduated colour intensity
 
-**App processing:** The bundled PNGs are in equirectangular projection (EPSG:4326). On first load, the app reprojects each image to Web Mercator (EPSG:3857) using nearest-neighbour interpolation to align with the MapKit map view. The reprojected images are cached in memory. Black pixels (RGB 0,0,0) are treated as nodata and rendered transparent.
+**App processing:**
+
+1. **Source data**: GeoTIFF rasters downloaded from Zenodo (7200x3600 pixels, 0.05° resolution, EPSG:4326). Each file covers -180° to +180° longitude and -90° to +90° latitude.
+2. **Projection**: Pre-rendered offline into three versions stored in the `geoglam/` directory on GitHub:
+   - `*_4326.png` -- Original equirectangular projection (7200x3600)
+   - `*_3857.png` -- Web Mercator projection (4096x4096), clipped to ±85.051° latitude
+   - `*_3857_2048.png` -- Mobile-optimised Web Mercator (2048x2048) for iPhone
+3. **Reprojection method**: Nearest-neighbour interpolation (correct for categorical/classified data). Black pixels (RGB 0,0,0) are set to transparent (alpha=0).
+4. **Loading in app**: The manager first checks a local disk cache, then attempts to download the `_3857_2048.png` version from GitHub (`raw.githubusercontent.com`). If both fail, it falls back to the bundled 4326 PNG with on-device reprojection.
+5. **Class filtering**: When legend classes are toggled off, per-pixel RGB filtering is applied with a tolerance of 20 to hide matching pixels.
+
+**Reference:** Fritz, S. et al. (2022). A global dataset of crowdsourced land cover and land use reference data (2012-2017). IIASA/GEOGLAM. *Zenodo*. [DOI: 10.5281/zenodo.7230863](https://doi.org/10.5281/zenodo.7230863)
 
 ---
 
@@ -91,7 +103,11 @@ Comprehensive documentation for every dataset available in ARCcrop. Datasets are
 
 **Legend classes:** Tree Cover, Shrubland, Grassland, Cropland, Built-up, Bare/Sparse Vegetation, Water, Wetland, Mangroves, Moss/Lichen (10 shown in app legend).
 
-**Source data:** Derived from Sentinel-1 and Sentinel-2 imagery.
+**App processing:** Tiles are requested directly from the Terrascope WMS in EPSG:3857 (no reprojection needed). 256x256 PNG tiles are cached via URLCache. Class filtering applies per-pixel RGB matching with tolerance 30.
+
+**Source data:** Derived from Sentinel-1 and Sentinel-2 imagery at 10m resolution.
+
+**Reference:** Zanaga, D. et al. (2022). ESA WorldCover 10 m 2021 v200. [DOI: 10.5281/zenodo.7254221](https://doi.org/10.5281/zenodo.7254221)
 
 ---
 
@@ -120,7 +136,11 @@ Comprehensive documentation for every dataset available in ARCcrop. Datasets are
 | Winter Cereals | `WORLDCEREAL_WINTERCEREALS_V1` | Binary: Winter Cereals |
 | Spring Cereals | `WORLDCEREAL_SPRINGCEREALS_V1` | Binary: Spring Cereals |
 
+**App processing:** Tiles are requested directly from the Terrascope WMS in EPSG:3857. Binary masks are served with server-side styling. No client-side reprojection.
+
 **Source data:** Derived from Sentinel-2 imagery. Each layer is a binary mask indicating presence/absence of the target crop type.
+
+**Reference:** Van Tricht, K. et al. (2023). WorldCereal: a dynamic open-source system for global-scale, seasonal, and reproducible crop and irrigation mapping. *Earth System Science Data*, 15(12), 5491--5515. [DOI: 10.5194/essd-15-5491-2023](https://doi.org/10.5194/essd-15-5491-2023)
 
 ---
 
@@ -153,8 +173,13 @@ Comprehensive documentation for every dataset available in ARCcrop. Datasets are
 | **Data Type** | Near-realtime land use/land cover |
 | **Classification** | 6 classes shown in legend: Trees, Grass, Bare, Crops, Built, Water |
 | **Access** | Requires Google Earth Engine service account JSON |
+| **Status** | No public WMS/XYZ endpoint available; requires GEE API |
 
 **API Key:** Requires a Google Cloud service account with Earth Engine API enabled. The service account JSON file contents are stored in the iOS Keychain.
+
+**App processing:** Currently requires GEE authentication. The app will display an error if no API key is configured. Future work: pre-render tiles for a reference year and host as PMTiles on GitHub.
+
+**Reference:** Brown, C.F. et al. (2022). Dynamic World, Near real-time global 10 m land use land cover mapping. *Scientific Data*, 9(1), 251. [DOI: 10.1038/s41597-022-01307-4](https://doi.org/10.1038/s41597-022-01307-4)
 
 ---
 
@@ -171,7 +196,11 @@ Comprehensive documentation for every dataset available in ARCcrop. Datasets are
 | **Classification** | 5 classes shown in legend: Cropland, Forest, Bare/Sparse, Water, Urban |
 | **Access** | Requires Copernicus Data Space username + password |
 
-**Source data:** Derived from Proba-V satellite imagery.
+**App processing:** Requires Copernicus Data Space Ecosystem (CDSE) authentication. Tiles are served from the CDSE WMS after login. The app stores username/password in the iOS Keychain.
+
+**Source data:** Derived from Proba-V satellite imagery at 100m resolution.
+
+**Reference:** Buchhorn, M. et al. (2020). Copernicus Global Land Service: Land Cover 100m: collection 3: epoch 2019. [DOI: 10.5281/zenodo.3939050](https://doi.org/10.5281/zenodo.3939050)
 
 ---
 
@@ -187,8 +216,13 @@ Comprehensive documentation for every dataset available in ARCcrop. Datasets are
 | **Data Type** | Land cover classification |
 | **Classification** | 4 classes shown in legend: Cropland, Forest, Grassland, Other |
 | **Access** | Requires Google Earth Engine service account JSON |
+| **Status** | No public WMS/XYZ endpoint; requires GEE API |
 
-**Source data:** Derived from Landsat and Sentinel imagery.
+**App processing:** Requires GEE authentication (same as Dynamic World). The app stores service account JSON in the iOS Keychain.
+
+**Source data:** Derived from Landsat and Sentinel imagery at 30m resolution.
+
+**Reference:** Gong, P. et al. (2019). Stable classification with limited sample: transferring a 30-m resolution sample set collected in 2015 to mapping 10-m resolution global land cover in 2017. *Science Bulletin*, 64(6), 370--373. [DOI: 10.1016/j.scib.2019.03.002](https://doi.org/10.1016/j.scib.2019.03.002)
 
 ---
 
@@ -215,7 +249,11 @@ Comprehensive documentation for every dataset available in ARCcrop. Datasets are
 
 **Legend classes:** Corn, Soybeans, Winter Wheat, Spring Wheat, Rice, Cotton, Sorghum, Grass/Pasture, Forest, Developed. Uses the official USDA CropScape colour palette.
 
-**Source data:** Annual crop-specific land cover from NASS using satellite imagery and extensive ground truth data.
+**App processing:** WMS tiles requested in EPSG:4326 (the only CRS this server supports). The app's `WMSTileURLProtocol` proxy intercepts these requests and handles the 4326→3857 BBOX reprojection on-the-fly before forwarding to the server. Tiles are 256x256 PNG. Per-pixel class filtering is applied when legend entries are toggled off.
+
+**Source data:** Annual crop-specific land cover from NASS using satellite imagery (Landsat, Deimos-1) and extensive ground truth data from the June Agricultural Survey.
+
+**Reference:** USDA NASS (2024). CropScape -- Cropland Data Layer. [https://nassgeodata.gmu.edu/CropScape/](https://nassgeodata.gmu.edu/CropScape/)
 
 ---
 
@@ -240,7 +278,11 @@ Comprehensive documentation for every dataset available in ARCcrop. Datasets are
 
 **Legend classes:** Wheat, Canola, Barley, Soybeans, Corn, Lentils, Peas, Pasture.
 
+**App processing:** WMS tiles requested in EPSG:3857 from the year-specific ArcGIS WMS endpoint. No reprojection needed. 256x256 PNG tiles cached locally.
+
 **Source data:** Derived from Landsat and RapidEye satellite imagery with ground truth data from Agriculture Canada.
+
+**Reference:** AAFC (2024). Annual Crop Inventory. [https://open.canada.ca/data/en/dataset/ba2645d5-4458-414d-b196-6303ac06c1c9](https://open.canada.ca/data/en/dataset/ba2645d5-4458-414d-b196-6303ac06c1c9)
 
 ---
 
@@ -307,7 +349,11 @@ Comprehensive documentation for every dataset available in ARCcrop. Datasets are
 
 **Legend classes:** Artificial, Common Wheat, Durum Wheat, Barley, Rye, Oats, Maize, Rice, Triticale, Potatoes, Sugar Beet, Other Crops, Sunflower, Rapeseed, Soya, Dry Pulses, Fodder Crops, Bare Arable, Woodland, Grasslands, Bare Land, Water, Wetlands.
 
-**Source data:** Derived primarily from Sentinel-1 SAR imagery.
+**App processing:** WMS tiles requested in EPSG:3857 with year-specific layer names. No reprojection needed. Class filtering uses per-pixel RGB matching with the 23-entry JRC colour palette.
+
+**Source data:** Derived primarily from Sentinel-1 SAR imagery using a random forest classifier.
+
+**Reference:** d'Andrimont, R. et al. (2021). From parcel to continental scale -- A first European crop type map based on Sentinel-1 data. *Remote Sensing of Environment*, 266, 112708. [DOI: 10.1016/j.rse.2021.112708](https://doi.org/10.1016/j.rse.2021.112708)
 
 ---
 
@@ -331,7 +377,9 @@ Comprehensive documentation for every dataset available in ARCcrop. Datasets are
 
 **Legend classes:** Winter Wheat, Barley, Oats, Oilseed Rape, Maize, Potatoes, Sugar Beet, Field Beans, Peas, Grass, Fallow. Uses the official Defra colour palette.
 
-**App processing:** The WMS service provides per-county sublayers. The app supports both full England layer requests and bounded per-county requests via `BoundedWMSTileOverlay` that clips tile loading to each county's geographic extent, reducing unnecessary downloads. 40 English counties are defined with exact bounding boxes from the WMS GetCapabilities response.
+**App processing:** WMS tiles requested in EPSG:3857 with year-specific layer names. Tiles are 256x256 PNG. Class filtering uses per-pixel RGB matching against Defra's colour palette with tolerance 30.
+
+**Reference:** Defra/RPA (2024). Crop Map of England (CROME). [https://environment.data.gov.uk/dataset/f0385042-b8aa-4fbe-b983-37a0c09ed86c](https://environment.data.gov.uk/dataset/f0385042-b8aa-4fbe-b983-37a0c09ed86c)
 
 ---
 
@@ -356,7 +404,11 @@ Comprehensive documentation for every dataset available in ARCcrop. Datasets are
 
 **Legend classes:** Winter Wheat, Winter Barley, Winter Rye, Rapeseed, Spring Barley, Spring Oats, Maize, Sugar Beet, Potatoes, Permanent Grass.
 
-**Source data:** Derived from Sentinel-2 optical imagery.
+**App processing:** WMS tiles requested in EPSG:3857 with `STYLES=croptypes` to select the crop type colour styling. No reprojection needed.
+
+**Source data:** Derived from Sentinel-2 optical imagery using deep learning.
+
+**Reference:** DLR EOC (2023). CropTypes Germany. [https://geoservice.dlr.de/web/maps/eoc:croptypes](https://geoservice.dlr.de/web/maps/eoc:croptypes)
 
 ---
 
