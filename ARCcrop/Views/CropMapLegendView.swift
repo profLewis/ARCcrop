@@ -166,13 +166,12 @@ struct CropMapLegendView: View {
     }
 }
 
-// MARK: - Multi-legend container (tabs + drag to reorder + move whole panel)
+// MARK: - Multi-legend container (separate collapsible legends, draggable panel)
 
 struct MultiLegendView: View {
     @Environment(AppSettings.self) private var settings
     @State private var panelOffset: CGSize = .zero
     @State private var panelSaved: CGSize = .zero
-    @State private var draggingID: String?
 
     /// Show legends for all active sources that have legend data
     private var visibleLegends: [(source: CropMapSource, data: CropMapLegendData)] {
@@ -182,7 +181,7 @@ struct MultiLegendView: View {
         }
     }
 
-    /// Drag gesture for moving the panel (applied only to header, not scrollable content)
+    /// Drag gesture for moving the panel
     private var panelDrag: some Gesture {
         DragGesture()
             .onChanged { panelOffset = $0.translation }
@@ -197,102 +196,205 @@ struct MultiLegendView: View {
 
     var body: some View {
         if !visibleLegends.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                // Draggable header area (drag here to move panel)
-                Group {
-                    // Single layer: show name + close button as header
-                    if visibleLegends.count == 1, let item = visibleLegends.first {
-                        HStack {
-                            Text(item.source.sourceName)
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(.primary)
-                            Spacer()
-                            Button {
-                                settings.activeCropMaps.removeAll()
-                                settings.hiddenClasses = []
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.top, 6)
-                        .padding(.bottom, 2)
-                    }
-
-                    // Tab bar — tap to focus, drag to reorder layers
-                    if visibleLegends.count > 1 {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 2) {
-                                ForEach(visibleLegends, id: \.source.id) { item in
-                                    legendTab(item.source)
-                                        .opacity(draggingID == item.source.id ? 0.4 : 1.0)
-                                        .onDrag {
-                                            draggingID = item.source.id
-                                            return NSItemProvider(object: item.source.id as NSString)
-                                        }
-                                        .onDrop(of: [.text], delegate: TabDropDelegate(
-                                            targetID: item.source.id,
-                                            settings: settings,
-                                            draggingID: $draggingID
-                                        ))
-                                }
-                            }
-                            .padding(.horizontal, 4)
-                            .padding(.top, 4)
-                        }
-                    }
+            VStack(alignment: .leading, spacing: 4) {
+                // Drag handle — always visible, easy to grip
+                HStack {
+                    Spacer()
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(.secondary.opacity(0.5))
+                        .frame(width: 36, height: 4)
+                    Spacer()
                 }
+                .padding(.top, 6)
+                .padding(.bottom, 2)
                 .contentShape(Rectangle())
                 .gesture(panelDrag)
 
-                // Scrollable legend content (no panel drag here)
-                let focusedID = settings.focusedCropMap.id
-                if let item = visibleLegends.first(where: { $0.source.id == focusedID }) ?? visibleLegends.first {
+                // Each active dataset gets its own collapsible legend
+                ForEach(visibleLegends, id: \.source.id) { item in
                     let yr = item.source.availableYears != nil ? item.source.currentYear : nil
-                    CropMapLegendView(legendData: item.data, sourceID: item.source.id, year: yr)
+                    LegendCard(source: item.source, legendData: item.data, year: yr)
                 }
             }
+            .padding(.horizontal, 4)
+            .padding(.bottom, 4)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
             .offset(x: panelOffset.width + panelSaved.width,
                     y: panelOffset.height + panelSaved.height)
         }
     }
+}
 
-    private func legendTab(_ source: CropMapSource) -> some View {
-        let isFocused = source.id == settings.focusedCropMap.id
-        let year = source.currentYear
-        let showYear = (source.availableYears != nil && year > 0)
-        let label = showYear ? "\(source.sourceName) \(year)" : source.sourceName
-        return HStack(spacing: 2) {
-            Button {
-                if let idx = settings.activeCropMaps.firstIndex(where: { $0.id == source.id }) {
-                    settings.focusedLayerIndex = idx
-                }
-            } label: {
-                Text(label)
-                    .font(.system(size: 9, weight: isFocused ? .bold : .regular))
-            }
-            .buttonStyle(.plain)
+/// A single dataset legend card with header (close button + collapse) and entries
+struct LegendCard: View {
+    let source: CropMapSource
+    let legendData: CropMapLegendData
+    var year: Int?
+    @Environment(AppSettings.self) private var settings
+    @State private var isExpanded = true
+    @State private var editingEntry: LegendEntry?
 
-            Button {
-                settings.activeCropMaps.removeAll { $0.id == source.id }
-                settings.hiddenClasses = []
-                if settings.focusedLayerIndex >= settings.activeCropMaps.count {
-                    settings.focusedLayerIndex = max(0, settings.activeCropMaps.count - 1)
-                }
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 7, weight: .bold))
+    private var sourcePrefix: String { source.id + "|" }
+
+    private var headerText: String {
+        let name = source.sourceName
+        if let y = year, y > 0 { return "\(name) (\(y))" }
+        return name
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header: chevron + name + close button
+            HStack(spacing: 4) {
+                Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                    .font(.caption2.bold())
                     .foregroundStyle(.secondary)
+                Text(headerText)
+                    .font(.system(size: 10, weight: .semibold))
+                    .lineLimit(1)
+                Spacer()
+                Button {
+                    settings.activeCropMaps.removeAll { $0.id == source.id }
+                    settings.hiddenClasses = []
+                    if settings.focusedLayerIndex >= settings.activeCropMaps.count {
+                        settings.focusedLayerIndex = max(0, settings.activeCropMaps.count - 1)
+                    }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            .padding(.horizontal, 6)
+            .frame(minHeight: 28)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            }
+            .onLongPressGesture {
+                let allLabels = Set(legendData.entries.map(\.label))
+                if settings.hiddenClasses.isSuperset(of: allLabels) {
+                    settings.hiddenClasses.subtract(allLabels)
+                } else {
+                    settings.hiddenClasses.formUnion(allLabels)
+                }
+            }
+
+            if isExpanded {
+                let columns = legendData.entries.count > 12 ? 2 : 1
+                let rowHeight: CGFloat = 22
+                let rows = columns == 1 ? legendData.entries.count : (legendData.entries.count + 1) / 2
+                let contentHeight = CGFloat(rows) * rowHeight
+                let maxH: CGFloat = 200
+
+                if contentHeight > maxH {
+                    ScrollView(.vertical, showsIndicators: true) {
+                        legendGrid(columns: columns)
+                    }
+                    .frame(height: maxH)
+                } else {
+                    legendGrid(columns: columns)
+                }
+            }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(isFocused ? Color.accentColor.opacity(0.3) : Color.secondary.opacity(0.15))
-        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .padding(4)
+        .background(Color.secondary.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .sheet(item: $editingEntry) { entry in
+            LegendEntryEditor(
+                entry: entry,
+                sourcePrefix: sourcePrefix,
+                onSave: { newLabel, newColor in
+                    let key = sourcePrefix + entry.label
+                    let hex = newColor.hexString
+                    settings.legendOverrides[key] = (label: newLabel, hex: hex)
+                },
+                onReset: {
+                    settings.legendOverrides.removeValue(forKey: sourcePrefix + entry.label)
+                }
+            )
+            .presentationDetents([.medium])
+        }
+    }
+
+    @ViewBuilder
+    private func legendGrid(columns: Int) -> some View {
+        if columns == 1 {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(legendData.entries) { entry in legendRow(entry) }
+            }
+        } else {
+            let half = (legendData.entries.count + 1) / 2
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(legendData.entries.prefix(half)) { entry in legendRow(entry) }
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(legendData.entries.suffix(from: half)) { entry in legendRow(entry) }
+                }
+            }
+        }
+    }
+
+    private func displayLabel(for entry: LegendEntry) -> String {
+        let key = sourcePrefix + entry.label
+        return settings.legendOverrides[key]?.label ?? entry.label
+    }
+
+    private func displayColor(for entry: LegendEntry) -> Color {
+        let key = sourcePrefix + entry.label
+        guard let hex = settings.legendOverrides[key]?.hex else { return entry.color }
+        return Color(hex: hex) ?? entry.color
+    }
+
+    @ViewBuilder
+    private func legendRow(_ entry: LegendEntry) -> some View {
+        let isHidden = settings.hiddenClasses.contains(entry.label)
+        let color = displayColor(for: entry)
+        let label = displayLabel(for: entry)
+        Button {
+            if isHidden {
+                settings.hiddenClasses.remove(entry.label)
+            } else {
+                settings.hiddenClasses.insert(entry.label)
+            }
+        } label: {
+            HStack(spacing: 4) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(isHidden ? Color.clear : color)
+                        .frame(width: 12, height: 12)
+                    RoundedRectangle(cornerRadius: 2)
+                        .stroke(isHidden ? .secondary : color, lineWidth: 0.5)
+                        .frame(width: 12, height: 12)
+                    if isHidden {
+                        Path { path in
+                            path.move(to: CGPoint(x: 1, y: 1))
+                            path.addLine(to: CGPoint(x: 11, y: 11))
+                            path.move(to: CGPoint(x: 11, y: 1))
+                            path.addLine(to: CGPoint(x: 1, y: 11))
+                        }
+                        .stroke(.secondary, lineWidth: 1)
+                        .frame(width: 12, height: 12)
+                    }
+                }
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(isHidden ? .secondary : .primary)
+                    .lineLimit(1)
+            }
+            .frame(minHeight: 22)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 3.0)
+                .onEnded { _ in editingEntry = entry }
+        )
     }
 }
 

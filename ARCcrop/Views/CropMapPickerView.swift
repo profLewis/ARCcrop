@@ -74,7 +74,7 @@ struct CropMapPickerView: View {
 
             // MARK: - South America
             Section("South America") {
-                sourceButton(.mapBiomas(year: 2022), label: "\u{1F30E} MapBiomas", icon: "leaf.arrow.circlepath")
+                sourceButton(.mapBiomas(year: 2020), label: "\u{1F30E} MapBiomas", icon: "leaf.arrow.circlepath")
                 sourceButton(.geoIntaArgentina, label: "\u{1F1E6}\u{1F1F7} GeoINTA Argentina", icon: "leaf.fill")
             }
 
@@ -132,11 +132,14 @@ struct CropMapPickerView: View {
 
     private func sourceButton(_ source: CropMapSource, label: String, icon: String) -> some View {
         let active = isActive(source)
+        let needsKey = source.requiresAPIKey
+        let hasKey = needsKey && source.isAvailable
         return Button {
-            if source.requiresAPIKey && !source.isAvailable {
+            if needsKey && !hasKey {
                 settings.pendingCropMapSource = source
                 settings.apiKeySetupProvider = source.apiKeyProvider
                 settings.selectedTab = .settings
+                ActivityLog.shared.activity("\(source.sourceName) requires a \(source.apiKeyProvider?.rawValue ?? "API") key — opening settings…")
                 return
             }
             if active {
@@ -163,8 +166,15 @@ struct CropMapPickerView: View {
                 }
             }
         } label: {
-            Label(label, systemImage: active ? "eye.fill" : "eye.slash")
-                .foregroundStyle(active ? .green : .primary)
+            HStack(spacing: 4) {
+                Label(label, systemImage: active ? "eye.fill" : "eye.slash")
+                    .foregroundStyle(active ? .green : .primary)
+                if needsKey {
+                    Image(systemName: "key.fill")
+                        .font(.caption2)
+                        .foregroundStyle(hasKey ? .green : .red)
+                }
+            }
         }
     }
 }

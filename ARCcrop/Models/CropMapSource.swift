@@ -205,7 +205,7 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .worldCereal, .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals: "WMS · 10m · Global"
         case .copernicusLandCover: "100m · Global"
         case .fromGLC: "30m · Global"
-        case .mapBiomas: "30m · S. America"
+        case .mapBiomas: "WMS · 30m · S. America"
         }
     }
 
@@ -261,9 +261,10 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
              .ifapPortugal, .lpisPoland, .jordbrukSweden, .flikLuxembourg, .blwSwitzerland,
              .abaresAustralia, .lcdbNewZealand, .geoIntaArgentina,
              .esaWorldCover, .gladCropland, .worldCereal,
-             .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals:
+             .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals,
+             .mapBiomas:
             false
-        case .dynamicWorld, .fromGLC, .mapBiomas:
+        case .dynamicWorld, .fromGLC:
             true
         case .copernicusLandCover:
             true
@@ -272,7 +273,7 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
 
     var apiKeyProvider: APIKeyProvider? {
         switch self {
-        case .dynamicWorld, .fromGLC, .mapBiomas: .googleEarthEngine
+        case .dynamicWorld, .fromGLC: .googleEarthEngine
         case .copernicusLandCover: .copernicus
         default: nil
         }
@@ -287,7 +288,8 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
              .ifapPortugal, .lpisPoland, .jordbrukSweden, .flikLuxembourg, .blwSwitzerland,
              .abaresAustralia, .lcdbNewZealand, .geoIntaArgentina,
              .esaWorldCover, .gladCropland, .worldCereal,
-             .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals:
+             .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals,
+             .mapBiomas:
             return true
         default:
             guard let provider = apiKeyProvider else { return false }
@@ -352,7 +354,7 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .worldCereal, .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals: 2021...2021
         case .copernicusLandCover: 2015...2019
         case .fromGLC: 2017...2020
-        case .mapBiomas: 2000...2022
+        case .mapBiomas: 2000...2020
         }
     }
 
@@ -512,7 +514,7 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
             .geoIntaArgentina,
             .usdaCDL(year: 2023),
             .aafcCanada(year: 2024),
-            .mapBiomas(year: 2022),
+            .mapBiomas(year: 2020),
             .jrcEUCropMap(year: 2022),
             .esaWorldCover(year: 2021),
             .geoglamMajorityCrop,
@@ -549,7 +551,7 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
             .geoIntaArgentina,
             .usdaCDL(year: 2023),
             .aafcCanada(year: 2024),
-            .mapBiomas(year: 2022),
+            .mapBiomas(year: 2020),
             .jrcEUCropMap(year: 2022),
             .esaWorldCover(year: 2021),
             .geoglamMajorityCrop,
@@ -644,7 +646,7 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
             .abaresAustralia, .lcdbNewZealand, .geoIntaArgentina,
             .esaWorldCover(year: 2021), .gladCropland(year: 2020),
             .dynamicWorld, .worldCereal, .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals,
-            .copernicusLandCover, .fromGLC, .mapBiomas(year: 2022),
+            .copernicusLandCover, .fromGLC, .mapBiomas(year: 2020),
         ])
         return sources
     }
@@ -801,7 +803,7 @@ enum APIKeyProvider: String, CaseIterable, Sendable {
 
     var usedBy: String {
         switch self {
-        case .googleEarthEngine: "Dynamic World, WorldCereal, FROM-GLC, MapBiomas"
+        case .googleEarthEngine: "Dynamic World, FROM-GLC"
         case .copernicus: "Copernicus Land Cover, Sentinel-2 (CDSE)"
         case .planetaryComputer: "Sentinel-2, Landsat (Planetary Computer)"
         case .nasaEarthdata: "HLS, MODIS, VIIRS (NASA LP DAAC)"

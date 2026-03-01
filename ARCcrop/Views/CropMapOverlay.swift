@@ -134,12 +134,26 @@ final class WMSTileURLProtocol: URLProtocol, @unchecked Sendable {
             let cacheLabel = fromCache ? "cache" : "network"
             let status = httpResponse?.statusCode ?? 0
 
+            // Detect auth failures and surface a helpful message
+            if status == 401 || status == 403 {
+                Task { @MainActor in
+                    ActivityLog.shared.error("\(sourceHost): access denied (HTTP \(status)). Your API key may be invalid or expired — check Settings to update it.")
+                }
+                self.fail(msg: "Access denied (HTTP \(status))")
+                return
+            }
+
             // Log tile fetch details
             Task { @MainActor in
                 ActivityLog.shared.tileCompleted(bytes: tileBytes)
                 ActivityLog.shared.info(String(
                     format: "%@ %dKB %.1fs [%@] %d",
                     sourceHost, Int(sizeKB), elapsed, cacheLabel, status))
+            }
+
+            // Reproject tile from 4326 back to 3857 if needed
+            if needs4326, let reprojected = Self.reprojectTile4326to3857(tileData, mercBbox: bboxString) {
+                tileData = reprojected
             }
 
             // Apply pixel filtering if needed
@@ -198,6 +212,73 @@ final class WMSTileURLProtocol: URLProtocol, @unchecked Sendable {
         return result
     }
 
+    // MARK: 4326 → 3857 tile reprojection (pixel-level)
+
+    /// Reproject a tile image received in EPSG:4326 into EPSG:3857.
+    /// Uses nearest-neighbor (correct for classified/categorical raster data).
+    /// `mercBbox` is the original 3857 bbox string "x1,y1,x2,y2".
+    private static func reprojectTile4326to3857(_ pngData: Data, mercBbox: String) -> Data? {
+        let bboxParts = mercBbox.split(separator: ",")
+        guard bboxParts.count == 4,
+              let mx1 = Double(bboxParts[0]), let my1 = Double(bboxParts[1]),
+              let mx2 = Double(bboxParts[2]), let my2 = Double(bboxParts[3]) else { return nil }
+
+        guard let image = UIImage(data: pngData), let cgImage = image.cgImage else { return nil }
+        let size = 256
+        let srcW = cgImage.width, srcH = cgImage.height
+        let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
+
+        // Read source pixels
+        guard let srcCtx = CGContext(
+            data: nil, width: srcW, height: srcH, bitsPerComponent: 8, bytesPerRow: srcW * 4,
+            space: srgb, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ), let srcData = srcCtx.data else { return nil }
+        srcCtx.draw(cgImage, in: CGRect(x: 0, y: 0, width: srcW, height: srcH))
+        let srcPixels = srcData.bindMemory(to: UInt8.self, capacity: srcW * srcH * 4)
+
+        // Create output
+        guard let outCtx = CGContext(
+            data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: size * 4,
+            space: srgb, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ), let outData = outCtx.data else { return nil }
+        let outPixels = outData.bindMemory(to: UInt8.self, capacity: size * size * 4)
+
+        // 4326 bbox (what the WMS server delivered)
+        let a = 20037508.342789244
+        let lon1 = mx1 / a * 180.0
+        let lon2 = mx2 / a * 180.0
+        let lat1 = (2 * atan(exp(my1 / a * .pi)) - .pi / 2) * 180.0 / .pi
+        let lat2 = (2 * atan(exp(my2 / a * .pi)) - .pi / 2) * 180.0 / .pi
+
+        for oy in 0..<size {
+            // Map output pixel row to 3857 Y coordinate
+            let yFrac = (Double(oy) + 0.5) / Double(size)
+            let mercY = my2 - yFrac * (my2 - my1)  // top to bottom
+            // Convert 3857 Y → latitude
+            let lat = (2 * atan(exp(mercY / a * .pi)) - .pi / 2) * 180.0 / .pi
+            // Map latitude to source row (lat2 at top row 0, lat1 at bottom row srcH-1)
+            let srcRowFrac = (lat2 - lat) / (lat2 - lat1)
+            let srcRow = min(max(Int(srcRowFrac * Double(srcH)), 0), srcH - 1)
+
+            for ox in 0..<size {
+                let xFrac = (Double(ox) + 0.5) / Double(size)
+                let lon = lon1 + xFrac * (lon2 - lon1)
+                let srcColFrac = (lon - lon1) / (lon2 - lon1)
+                let srcCol = min(max(Int(srcColFrac * Double(srcW)), 0), srcW - 1)
+
+                let si = (srcRow * srcW + srcCol) * 4
+                let oi = (oy * size + ox) * 4
+                outPixels[oi]     = srcPixels[si]
+                outPixels[oi + 1] = srcPixels[si + 1]
+                outPixels[oi + 2] = srcPixels[si + 2]
+                outPixels[oi + 3] = srcPixels[si + 3]
+            }
+        }
+
+        guard let result = outCtx.makeImage() else { return nil }
+        return UIImage(cgImage: result).pngData()
+    }
+
     // MARK: Per-pixel filtering
 
     private static func filterPixels(_ pngData: Data, hiding colors: [(r: UInt8, g: UInt8, b: UInt8)]) -> Data? {
@@ -243,6 +324,7 @@ enum CropMapOverlayFactory {
     private static func wmsTemplate(
         baseURL: String, layers: String,
         format: String = "image/png",
+        styles: String = "",
         extraParams: String = "",
         wmsVersion: String = "1.1.1",
         useProxy: Bool = false
@@ -251,7 +333,7 @@ enum CropMapOverlayFactory {
         let bboxToken = useProxy ? "PROXY_BBOX" : "{bbox-epsg-3857}"
         var url = "\(baseURL)?SERVICE=WMS&VERSION=\(wmsVersion)&REQUEST=GetMap" +
             "&LAYERS=\(layers)&\(srsParam)=EPSG:3857&BBOX=\(bboxToken)" +
-            "&WIDTH=256&HEIGHT=256&FORMAT=\(format)&TRANSPARENT=TRUE&STYLES="
+            "&WIDTH=256&HEIGHT=256&FORMAT=\(format)&TRANSPARENT=TRUE&STYLES=\(styles)"
         if !extraParams.isEmpty { url += "&\(extraParams)" }
         return url
     }
@@ -528,6 +610,16 @@ enum CropMapOverlayFactory {
                     layers: "geonode:mnc_verano2024_f300268fd112b0ec3ef5f731edb78882",
                     wmsVersion: "1.3.0"),
                 minZoom: 0, maxZoom: 17, needs4326: false)
+
+        case .mapBiomas(let year):
+            let clampedYear = min(max(year, 2000), 2020)
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "http://azure.solved.eco.br:8080/geoserver/solved/wms",
+                    layers: "mapbiomas_\(clampedYear)",
+                    styles: "solved:mapbiomas_legend"),
+                minZoom: 0, maxZoom: 14, needs4326: false)
 
         default:
             return nil

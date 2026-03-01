@@ -912,7 +912,16 @@ struct MapContainerView: UIViewRepresentable {
                 }
 
                 guard let params = CropMapOverlayFactory.sourceParams(for: source) else {
-                    ActivityLog.shared.error("\(source.sourceName): no tile endpoint configured")
+                    if source.requiresAPIKey {
+                        let provider = source.apiKeyProvider?.rawValue ?? "API"
+                        if source.isAvailable {
+                            ActivityLog.shared.error("\(source.sourceName): \(provider) key saved but tile endpoint not yet implemented. This dataset requires server-side GEE processing.")
+                        } else {
+                            ActivityLog.shared.error("\(source.sourceName): requires \(provider) key — tap the key icon in the menu to set up")
+                        }
+                    } else {
+                        ActivityLog.shared.error("\(source.sourceName): no tile endpoint configured")
+                    }
                     continue
                 }
 
