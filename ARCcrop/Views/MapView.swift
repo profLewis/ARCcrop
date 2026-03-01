@@ -221,8 +221,11 @@ struct StatusBannerView: View {
     let isActive: Bool
     let tileProgress: Double?
     @State private var leafRotation: Double = 0
+    @State private var opacity: Double = 1.0
 
     private var isMultiLine: Bool { message.contains("\n") }
+    /// Success messages auto-fade; errors stay visible until next action
+    private var shouldAutoFade: Bool { !isActive && level == .success }
 
     var body: some View {
         VStack(spacing: 2) {
@@ -248,6 +251,14 @@ struct StatusBannerView: View {
                                         leafRotation = 360
                                     }
                                 }
+                        } else if level == .success {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.green)
+                        } else if level == .error {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.red)
                         }
                         Text(message)
                             .font(.caption2)
@@ -277,6 +288,22 @@ struct StatusBannerView: View {
         .padding(.vertical, 3)
         .background(Color.black.opacity(0.9))
         .clipShape(RoundedRectangle(cornerRadius: isMultiLine ? 8 : 20))
+        .opacity(opacity)
+        .onChange(of: message) {
+            // Reset opacity when new message arrives
+            opacity = 1.0
+            scheduleAutoFade()
+        }
+        .onAppear { scheduleAutoFade() }
+    }
+
+    private func scheduleAutoFade() {
+        guard shouldAutoFade else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            withAnimation(.easeOut(duration: 1.5)) {
+                opacity = 0.0
+            }
+        }
     }
 
     private var color: Color {
@@ -949,7 +976,7 @@ struct MapContainerView: UIViewRepresentable {
         }
 
         private func addGEOGLAMLayer(style: MLNStyle, source: CropMapSource) {
-            let image: UIImage?
+            var image: UIImage?
             switch source {
             case .geoglamMajorityCrop:
                 image = GEOGLAMOverlayManager.shared.mercatorImage(for: nil)
@@ -957,6 +984,17 @@ struct MapContainerView: UIViewRepresentable {
                 image = GEOGLAMOverlayManager.shared.mercatorImage(for: crop)
             default:
                 return
+            }
+
+            guard image != nil else { return }
+
+            // Apply per-pixel class filtering if any classes are hidden
+            if !currentHidden.isEmpty {
+                let entries = CropMapLegendData.forSource(source)?.entries ?? []
+                let filterColors = LegendColorExtractor.rgbValues(for: entries, matching: currentHidden)
+                if !filterColors.isEmpty {
+                    image = GEOGLAMOverlayManager.filterImage(image!, hiding: filterColors)
+                }
             }
 
             guard let image else { return }
