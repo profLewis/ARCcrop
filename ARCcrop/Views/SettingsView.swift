@@ -1,4 +1,7 @@
 import SwiftUI
+#if !os(tvOS)
+import MapLibre
+#endif
 
 struct SettingsView: View {
     @Environment(AppSettings.self) private var settings
@@ -48,13 +51,14 @@ struct SettingsView: View {
                         Stepper(settings.cacheSizeMB >= 1024 ? String(format: "%.1f GB", Double(settings.cacheSizeMB) / 1024) : "\(settings.cacheSizeMB) MB",
                                 value: $settings.cacheSizeMB, in: 256...5120, step: 256)
                     }
-                    let usedMB = Double(WMSTileOverlay.tileCache.currentDiskUsage) / (1024 * 1024)
-                    let capMB = Double(WMSTileOverlay.tileCache.diskCapacity) / (1024 * 1024)
-                    LabeledContent("Disk usage", value: String(format: "%.1f / %.0f MB", usedMB, capMB))
-                    let memMB = Double(WMSTileOverlay.tileCache.currentMemoryUsage) / (1024 * 1024)
-                    LabeledContent("Memory usage", value: String(format: "%.1f MB", memMB))
                     Button("Clear Cache") {
-                        WMSTileOverlay.tileCache.removeAllCachedResponses()
+                        MLNOfflineStorage.shared.resetDatabase { error in
+                            if let error {
+                                ActivityLog.shared.error("Cache clear failed: \(error.localizedDescription)")
+                            } else {
+                                ActivityLog.shared.success("Tile cache cleared")
+                            }
+                        }
                     }
                 }
                 #endif

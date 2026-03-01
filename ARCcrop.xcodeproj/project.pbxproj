@@ -23,7 +23,7 @@
 		26E08F532D084E6FA5A79E3A /* CropMapLegendView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF27FC3322FD043BE5ECED06 /* CropMapLegendView.swift */; };
 		291740ADF1BAC89621F55AAA /* CropCalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6067AE374012A63358FF922 /* CropCalendarService.swift */; };
 		2AE718868A08905AA216D62B /* CropMapOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 249DC0CB41CDD8F20BEE83FA /* CropMapOverlay.swift */; };
-		2AF000000000000000000001 /* PMTileOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AF000000000000000000010 /* PMTileOverlay.swift */; };
+
 		2B16844C6EDCC0FA91603763 /* GEOGLAM_WinterWheat.png in Resources */ = {isa = PBXBuildFile; fileRef = 9F7795F197E440CE4DC38545 /* GEOGLAM_WinterWheat.png */; };
 		30901924CDE25BB56BBEBCFE /* CropMapLegendView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF27FC3322FD043BE5ECED06 /* CropMapLegendView.swift */; };
 		3405EFF2013759CBFECC5FD2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEB298BCE9763881F0B149F1 /* ContentView.swift */; };
@@ -53,7 +53,7 @@
 		A1AC3CEAACBC16F75D0B85C4 /* GEOGLAM_WinterWheat_frac.png in Resources */ = {isa = PBXBuildFile; fileRef = 9EDE7D64503C61C04C4BC95A /* GEOGLAM_WinterWheat_frac.png */; };
 		A3F178E6923FCB87ED8C3C86 /* EODataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 284DB93155C961411320C11E /* EODataService.swift */; };
 		A80EB14EBE0EF69EF8D76EAD /* CropMapOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 249DC0CB41CDD8F20BEE83FA /* CropMapOverlay.swift */; };
-		A8F000000000000000000002 /* PMTileOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AF000000000000000000010 /* PMTileOverlay.swift */; };
+
 		AEA92858DEF2DAB903780311 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 78A9D698087489E800773B7D /* Assets.xcassets */; };
 		B28A5B2DAF1753AAF4229A3C /* GEOGLAM_Maize.png in Resources */ = {isa = PBXBuildFile; fileRef = BDA648527309CFFAC4ED674E /* GEOGLAM_Maize.png */; };
 		B4EBE3DD003DBD80F99C678B /* GEOGLAM_MajorityCrop.png in Resources */ = {isa = PBXBuildFile; fileRef = C8765F560073AF4EBE43F40E /* GEOGLAM_MajorityCrop.png */; };
@@ -90,7 +90,7 @@
 		14DF3A1379CAC14F1357EC79 /* CropMapPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropMapPickerView.swift; sourceTree = "<group>"; };
 		238F2DB385A78DF247159F5A /* GEOGLAM_CropPicture.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_CropPicture.png; sourceTree = "<group>"; };
 		249DC0CB41CDD8F20BEE83FA /* CropMapOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropMapOverlay.swift; sourceTree = "<group>"; };
-		2AF000000000000000000010 /* PMTileOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PMTileOverlay.swift; sourceTree = "<group>"; };
+
 		284DB93155C961411320C11E /* EODataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EODataService.swift; sourceTree = "<group>"; };
 		28DDD4F3B749748253687C5B /* GEOGLAM_Soybean_frac.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_Soybean_frac.png; sourceTree = "<group>"; };
 		3847DB144D3214CF6E6A178D /* GEOGLAM_Maize_frac.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_Maize_frac.png; sourceTree = "<group>"; };
@@ -156,7 +156,7 @@
 				C1AF05347F3D4DCB091942CB /* CropDashboardView.swift */,
 				AF27FC3322FD043BE5ECED06 /* CropMapLegendView.swift */,
 				249DC0CB41CDD8F20BEE83FA /* CropMapOverlay.swift */,
-				2AF000000000000000000010 /* PMTileOverlay.swift */,
+
 				14DF3A1379CAC14F1357EC79 /* CropMapPickerView.swift */,
 				3E941B98CCB7D23E2D172F70 /* GEOGLAMOverlay.swift */,
 				A02672CF89F10154965C9B36 /* LogView.swift */,
@@ -282,6 +282,7 @@
 			buildConfigurationList = 62F8956F17CE953D5F816C08 /* Build configuration list for PBXNativeTarget "ARCcrop" */;
 			buildPhases = (
 				3ED74F9A91EACC076C6DA20B /* Sources */,
+				ML00000000000000000000C1 /* Frameworks */,
 				0EC7334D014791D8127BC210 /* Resources */,
 			);
 			buildRules = (
@@ -290,6 +291,7 @@
 			);
 			name = ARCcrop;
 			packageProductDependencies = (
+				ML00000000000000000000B1 /* MapLibre */,
 			);
 			productName = ARCcrop;
 			productReference = 05E11266064A40130C0DA050 /* ARCcrop.app */;
@@ -326,6 +328,9 @@
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
+			packageReferences = (
+				ML00000000000000000000A1 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */,
+			);
 			projectRoot = "";
 			targets = (
 				89EA226FB5DC64A2EFB9B7AC /* ARCcrop */,
@@ -398,7 +403,7 @@
 				09284681B5F6BDD44F848A48 /* CropMapLegend.swift in Sources */,
 				26E08F532D084E6FA5A79E3A /* CropMapLegendView.swift in Sources */,
 				2AE718868A08905AA216D62B /* CropMapOverlay.swift in Sources */,
-				2AF000000000000000000001 /* PMTileOverlay.swift in Sources */,
+
 				3C009DF5BB8BECD894C37569 /* CropMapPickerView.swift in Sources */,
 				62E6D03C7D0CA1158D15AA0D /* CropMapSource.swift in Sources */,
 				D649D82550E45FDE8C637C3D /* EODataService.swift in Sources */,
@@ -426,7 +431,7 @@
 				03C071F1AE782A8846AA25E1 /* CropMapLegend.swift in Sources */,
 				30901924CDE25BB56BBEBCFE /* CropMapLegendView.swift in Sources */,
 				A80EB14EBE0EF69EF8D76EAD /* CropMapOverlay.swift in Sources */,
-				A8F000000000000000000002 /* PMTileOverlay.swift in Sources */,
+
 				D90591C948818D8BDF18AA24 /* CropMapPickerView.swift in Sources */,
 				4EE546D58CE37730F46266AE /* CropMapSource.swift in Sources */,
 				A3F178E6923FCB87ED8C3C86 /* EODataService.swift in Sources */,
@@ -441,6 +446,16 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		ML00000000000000000000C1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
 		36F79FAA699654794A6BDEB4 /* Release */ = {
@@ -675,6 +690,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		ML00000000000000000000A1 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/maplibre/maplibre-gl-native-distribution";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		ML00000000000000000000B1 /* MapLibre */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = ML00000000000000000000A1 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */;
+			productName = MapLibre;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = FB7D79D6DE1FE573BF169A1F /* Project object */;
 }

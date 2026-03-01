@@ -27,3 +27,9 @@ Carthage/Build/
 .DS_Store
 *.swp
 *~.nib
+
+# Large data files (MBTiles, PMTiles, GeoTIFFs)
+pmtiles/
+scripts/geoglam_tifs/
+*.mbtiles
+*.pmtiles

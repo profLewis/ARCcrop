@@ -1,618 +1,548 @@
 #if !os(tvOS)
-import MapKit
 import UIKit
 
-/// MKTileOverlay subclass that constructs WMS GetMap URLs from tile coordinates.
-class WMSTileOverlay: MKTileOverlay {
-    let baseURL: String
-    let layers: String
-    let crs: String
-    let format: String
-    let extraParams: String
-    let wmsVersion: String   // "1.1.1" or "1.3.0"
+// MARK: - WMS Source Parameters for MapLibre
+
+/// Parameters for creating an MLNRasterTileSource from a WMS endpoint.
+struct WMSSourceParams {
+    let identifier: String
+    let tileURLTemplate: String
     let minZoom: Int
+    let maxZoom: Int
+    /// Whether this source needs EPSG:4326 (server rejects 3857)
+    let needs4326: Bool
+}
 
-    /// Shared URL cache for WMS tiles (200 MB memory, 2 GB disk default)
-    static let tileCache: URLCache = {
-        URLCache(
-            memoryCapacity: 200 * 1024 * 1024,
-            diskCapacity: 2 * 1024 * 1024 * 1024,
-            diskPath: "WMSTileCache"
-        )
-    }()
+// MARK: - WMS Tile URLProtocol
 
-    /// Update disk capacity at runtime (called from AppSettings)
-    static func applyDiskCapacity(_ mb: Int) {
-        tileCache.diskCapacity = mb * 1024 * 1024
-    }
+/// Intercepts `arccrop-wms://` URLs for two purposes:
+/// 1. **EPSG:4326 reprojection**: converts 3857 bbox to 4326
+/// 2. **Per-pixel class filtering**: makes pixels transparent for hidden legend classes
+///
+/// URL format: `arccrop-wms://t/{bbox-epsg-3857}/BASE64URL?filter=R,G,B|...&crs4326=1`
+/// - MapLibre substitutes `{bbox-epsg-3857}` in the path
+/// - BASE64URL encodes the real WMS URL (with BBOX= placeholder)
+/// - `filter` query param: pipe-separated RGB triples to make transparent
+/// - `crs4326` query param: if present, reproject bbox to EPSG:4326
+final class WMSTileURLProtocol: URLProtocol, @unchecked Sendable {
+    /// Fake HTTP host that signals this request should be intercepted.
+    /// Uses http:// so MapLibre's networking layer passes it through to NSURLSession.
+    static let proxyHost = "arccrop-filter.internal"
+    private var dataTask: URLSessionDataTask?
 
+    /// Shared session for fetching original tiles (does NOT include this protocol class
+    /// to avoid infinite recursion — uses a plain default configuration).
     private static let session: URLSession = {
         let config = URLSessionConfiguration.default
-        config.urlCache = WMSTileOverlay.tileCache
-        // Use cached tiles across sessions; only fetch from network on cache miss
+        config.urlCache = URLCache(memoryCapacity: 128 * 1024 * 1024, diskCapacity: 1024 * 1024 * 1024)
         config.requestCachePolicy = .returnCacheDataElseLoad
-        // Limit concurrent downloads per host — reduces wasted fetches when zooming
-        config.httpMaximumConnectionsPerHost = 6
         return URLSession(configuration: config)
     }()
 
-    /// Current active zoom level — used to cancel stale downloads when zoom changes
-    nonisolated(unsafe) private static var activeZoom: Int = -1
-
-    /// Cancel in-flight downloads for stale zoom levels
-    static func cancelStaleDownloads(currentZoom: Int) {
-        guard abs(currentZoom - activeZoom) >= 1 else { return }
-        activeZoom = currentZoom
-        session.getAllTasks { tasks in
-            for task in tasks where task.state == .running {
-                task.cancel()
-            }
-        }
+    override class func canInit(with request: URLRequest) -> Bool {
+        request.url?.host == proxyHost
     }
 
-    /// Cancel all in-flight WMS tile downloads
-    static func cancelAllDownloads() {
-        session.getAllTasks { tasks in
-            for task in tasks { task.cancel() }
-        }
-        Task { @MainActor in ActivityLog.shared.resetTileProgress() }
-    }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
-    /// Force-cache a response even when the server sends no-cache / no-store headers.
-    /// WMS tile data is static for a given year+layer, so aggressive caching is safe.
-    private static func forceCache(data: Data, response: URLResponse, request: URLRequest) {
-        let cached = CachedURLResponse(
-            response: response, data: data,
-            userInfo: nil, storagePolicy: .allowed
-        )
-        tileCache.storeCachedResponse(cached, for: request)
-    }
-
-    /// 1×1 transparent PNG returned for tiles below minZoom
-    private static let emptyTile: Data = {
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1))
-        return renderer.pngData { ctx in
-            UIColor.clear.setFill()
-            ctx.fill(CGRect(x: 0, y: 0, width: 1, height: 1))
-        }
-    }()
-
-    init(baseURL: String, layers: String, crs: String = "EPSG:3857",
-         format: String = "image/png", extraParams: String = "",
-         minZoom: Int = 0, maxZoom: Int = 15, wmsVersion: String = "1.1.1") {
-        self.baseURL = baseURL
-        self.layers = layers
-        self.crs = crs
-        self.format = format
-        self.extraParams = extraParams
-        self.wmsVersion = wmsVersion
-        self.minZoom = minZoom
-        super.init(urlTemplate: nil)
-        self.canReplaceMapContent = false
-        self.tileSize = CGSize(width: 256, height: 256)
-        self.maximumZ = maxZoom
-    }
-
-    /// Web Mercator origin shift in meters
-    private static let originShift = 20037508.3427892
-
-    override func url(forTilePath path: MKTileOverlayPath) -> URL {
-        let n = pow(2.0, Double(path.z))
-        let bbox: String
-
-        if crs == "EPSG:4326" {
-            // Geographic coordinates
-            let lonMin = Double(path.x) / n * 360.0 - 180.0
-            let lonMax = Double(path.x + 1) / n * 360.0 - 180.0
-            let latMax = atan(sinh(.pi * (1 - 2 * Double(path.y) / n))) * 180.0 / .pi
-            let latMin = atan(sinh(.pi * (1 - 2 * Double(path.y + 1) / n))) * 180.0 / .pi
-            // WMS 1.1.1: minx(lon),miny(lat),maxx(lon),maxy(lat)
-            // WMS 1.3.0 EPSG:4326: miny(lat),minx(lon),maxy(lat),maxx(lon)
-            if wmsVersion == "1.3.0" {
-                bbox = "\(latMin),\(lonMin),\(latMax),\(lonMax)"
-            } else {
-                bbox = "\(lonMin),\(latMin),\(lonMax),\(latMax)"
-            }
-        } else {
-            // EPSG:3857 (Web Mercator) BBOX in meters
-            let tileSpan = 2.0 * Self.originShift / n
-            let xMin = -Self.originShift + Double(path.x) * tileSpan
-            let xMax = -Self.originShift + Double(path.x + 1) * tileSpan
-            let yMax = Self.originShift - Double(path.y) * tileSpan
-            let yMin = Self.originShift - Double(path.y + 1) * tileSpan
-            bbox = "\(xMin),\(yMin),\(xMax),\(yMax)"
-        }
-
-        let srsParam = wmsVersion == "1.3.0" ? "CRS" : "SRS"
-        var urlString = "\(baseURL)?SERVICE=WMS&VERSION=\(wmsVersion)&REQUEST=GetMap" +
-            "&LAYERS=\(layers)&\(srsParam)=\(crs)&BBOX=\(bbox)" +
-            "&WIDTH=256&HEIGHT=256&FORMAT=\(format)&TRANSPARENT=TRUE&STYLES="
-        if !extraParams.isEmpty { urlString += "&\(extraParams)" }
-
-        return URL(string: urlString)!
-    }
-
-    override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, (any Error)?) -> Void) {
-        // Below minimum useful zoom — return transparent tile
-        if path.z < minZoom {
-            result(Self.emptyTile, nil)
+    override func startLoading() {
+        guard let url = request.url else {
+            fail(msg: "No URL")
             return
         }
 
-        let tileURL = url(forTilePath: path)
-        let request = URLRequest(url: tileURL)
-
-        // Serve from cache immediately (persists across sessions)
-        if let cached = Self.tileCache.cachedResponse(for: request) {
-            result(cached.data, nil)
+        let pathComponents = url.pathComponents.filter { $0 != "/" }
+        // Path: ["t", bbox_string, base64_encoded_url]
+        guard pathComponents.count >= 3 else {
+            fail(msg: "Invalid path (expected /t/bbox/base64): \(url.path)")
             return
         }
 
-        Task { @MainActor in ActivityLog.shared.tileRequested() }
+        let bboxString = pathComponents[1]
+        let base64Part = pathComponents[2]
 
-        Self.session.dataTask(with: request) { data, response, error in
-            let bytes = data?.count ?? 0
-            // Force-cache the tile so it persists across app sessions
-            if let data, let response, bytes > 0 {
-                Self.forceCache(data: data, response: response, request: request)
-            }
-            Task { @MainActor in ActivityLog.shared.tileCompleted(bytes: bytes) }
-            result(data, error)
-        }.resume()
-    }
-}
-
-/// Solid dark tile overlay used as "No Base Map" background.
-final class BlankTileOverlay: MKTileOverlay {
-    private let tileData: Data
-
-    init(color: UIColor = UIColor(white: 0.12, alpha: 1)) {
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1))
-        tileData = renderer.pngData { ctx in
-            color.setFill()
-            ctx.fill(CGRect(x: 0, y: 0, width: 1, height: 1))
+        // Decode real WMS URL from base64url
+        let base64 = base64Part
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let padded = base64 + String(repeating: "=", count: (4 - base64.count % 4) % 4)
+        guard let data = Data(base64Encoded: padded),
+              var realURLString = String(data: data, encoding: .utf8) else {
+            fail(msg: "Failed to decode base64")
+            return
         }
-        super.init(urlTemplate: nil)
-        self.canReplaceMapContent = true
-        self.tileSize = CGSize(width: 256, height: 256)
-    }
 
-    override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, (any Error)?) -> Void) {
-        result(tileData, nil)
-    }
-}
+        // Substitute bbox placeholder with actual values
+        realURLString = realURLString.replacingOccurrences(of: "BBOX=PROXY_BBOX", with: "BBOX=\(bboxString)")
 
-/// Tile overlay wrapper that filters out hidden colors from WMS tiles.
-final class FilteredTileOverlay: MKTileOverlay {
-    let sourceOverlay: MKTileOverlay
-    let hiddenRGBs: [(r: UInt8, g: UInt8, b: UInt8)]
-    let tolerance: Int
+        // Parse query params
+        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        let queryItems = components?.queryItems ?? []
+        let needs4326 = queryItems.contains { $0.name == "crs4326" }
 
-    init(source: MKTileOverlay, hiddenRGBs: [(r: UInt8, g: UInt8, b: UInt8)], tolerance: Int = 30) {
-        self.sourceOverlay = source
-        self.hiddenRGBs = hiddenRGBs
-        self.tolerance = tolerance
-        super.init(urlTemplate: nil)
-        self.canReplaceMapContent = source.canReplaceMapContent
-        self.tileSize = source.tileSize
-    }
+        // Parse filter colors
+        var filterColors: [(r: UInt8, g: UInt8, b: UInt8)] = []
+        if let filterParam = queryItems.first(where: { $0.name == "filter" })?.value {
+            for rgb in filterParam.split(separator: "|") {
+                let parts = rgb.split(separator: ",")
+                if parts.count == 3,
+                   let r = UInt8(parts[0]), let g = UInt8(parts[1]), let b = UInt8(parts[2]) {
+                    filterColors.append((r: r, g: g, b: b))
+                }
+            }
+        }
 
-    override func url(forTilePath path: MKTileOverlayPath) -> URL {
-        sourceOverlay.url(forTilePath: path)
-    }
+        // 4326 reprojection
+        if needs4326 {
+            realURLString = Self.reproject3857to4326(realURLString, bbox: bboxString)
+        }
 
-    override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, (any Error)?) -> Void) {
-        sourceOverlay.loadTile(at: path) { [hiddenRGBs, tolerance] data, error in
-            guard let data, !hiddenRGBs.isEmpty else {
-                result(data, error)
+        guard let realURL = URL(string: realURLString) else {
+            fail(msg: "Invalid URL: \(realURLString)")
+            return
+        }
+
+        // Fetch original tile — always cache the originals aggressively
+        var req = URLRequest(url: realURL)
+        req.cachePolicy = .returnCacheDataElseLoad
+
+        dataTask = Self.session.dataTask(with: req) { [weak self] data, response, error in
+            guard let self else { return }
+            if let error {
+                self.client?.urlProtocol(self, didFailWithError: error)
                 return
             }
-            if let filtered = Self.filterTile(data, hiding: hiddenRGBs, tolerance: tolerance) {
-                result(filtered, nil)
-            } else {
-                result(data, error)
+            guard var tileData = data else {
+                self.fail(msg: "No tile data")
+                return
             }
+
+            // Apply pixel filtering if needed
+            if !filterColors.isEmpty, let filtered = Self.filterPixels(tileData, hiding: filterColors) {
+                tileData = filtered
+            }
+
+            // Return with cache-friendly headers
+            let headers: [String: String] = [
+                "Content-Type": "image/png",
+                "Content-Length": "\(tileData.count)",
+                "Cache-Control": "max-age=604800"  // 7 days
+            ]
+            if let httpResp = HTTPURLResponse(
+                url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: headers
+            ) {
+                self.client?.urlProtocol(self, didReceive: httpResp, cacheStoragePolicy: .allowed)
+            }
+            self.client?.urlProtocol(self, didLoad: tileData)
+            self.client?.urlProtocolDidFinishLoading(self)
         }
+        dataTask?.resume()
     }
 
-    private static func filterTile(_ data: Data, hiding colors: [(r: UInt8, g: UInt8, b: UInt8)], tolerance: Int) -> Data? {
-        guard let image = UIImage(data: data)?.cgImage else { return nil }
-        let w = image.width, h = image.height
-        guard w > 0, h > 0 else { return nil }
+    override func stopLoading() {
+        dataTask?.cancel()
+    }
 
+    private func fail(msg: String) {
+        client?.urlProtocol(self, didFailWithError: NSError(
+            domain: "WMSTileURLProtocol", code: -1,
+            userInfo: [NSLocalizedDescriptionKey: msg]))
+    }
+
+    // MARK: EPSG:3857 → 4326 reprojection
+
+    private static func reproject3857to4326(_ urlString: String, bbox: String) -> String {
+        let parts = bbox.split(separator: ",")
+        guard parts.count == 4,
+              let x1 = Double(parts[0]), let y1 = Double(parts[1]),
+              let x2 = Double(parts[2]), let y2 = Double(parts[3]) else {
+            return urlString
+        }
+
+        let a = 20037508.342789244
+        let lon1 = x1 / a * 180.0
+        let lon2 = x2 / a * 180.0
+        let lat1 = (2 * atan(exp(y1 / a * Double.pi)) - Double.pi / 2) * 180.0 / Double.pi
+        let lat2 = (2 * atan(exp(y2 / a * Double.pi)) - Double.pi / 2) * 180.0 / Double.pi
+
+        let newBbox = String(format: "%.8f,%.8f,%.8f,%.8f", lon1, lat1, lon2, lat2)
+        var result = urlString.replacingOccurrences(
+            of: "BBOX=\(bbox)", with: "BBOX=\(newBbox)")
+        result = result.replacingOccurrences(of: "SRS=EPSG:3857", with: "SRS=EPSG:4326")
+        result = result.replacingOccurrences(of: "CRS=EPSG:3857", with: "CRS=EPSG:4326")
+        return result
+    }
+
+    // MARK: Per-pixel filtering
+
+    private static func filterPixels(_ pngData: Data, hiding colors: [(r: UInt8, g: UInt8, b: UInt8)]) -> Data? {
+        guard let image = UIImage(data: pngData), let cgImage = image.cgImage else { return nil }
+        let w = cgImage.width, h = cgImage.height
+        let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
         guard let ctx = CGContext(
             data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
-            space: CGColorSpaceCreateDeviceRGB(),
+            space: srgb,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else { return nil }
 
-        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: w, height: h))
         guard let pixels = ctx.data else { return nil }
         let buf = pixels.bindMemory(to: UInt8.self, capacity: w * h * 4)
+        let tolerance = 3  // Low tolerance — WMS classification tiles use exact colors
 
         for i in stride(from: 0, to: w * h * 4, by: 4) {
-            let r = buf[i], g = buf[i+1], b = buf[i+2]
-            if buf[i+3] == 0 { continue } // already transparent
+            let r = buf[i], g = buf[i + 1], b = buf[i + 2]
+            if buf[i + 3] == 0 { continue }
             for (tr, tg, tb) in colors {
                 if abs(Int(r) - Int(tr)) <= tolerance &&
                    abs(Int(g) - Int(tg)) <= tolerance &&
                    abs(Int(b) - Int(tb)) <= tolerance {
-                    buf[i+3] = 0
+                    buf[i + 3] = 0
                     break
                 }
             }
         }
 
-        guard let filtered = ctx.makeImage() else { return nil }
-        return UIImage(cgImage: filtered).pngData()
+        guard let result = ctx.makeImage() else { return nil }
+        return UIImage(cgImage: result).pngData()
     }
 }
 
-// MARK: - Bounded WMS overlay (only loads tiles within geographic bounds)
+// MARK: - Overlay Factory
 
-final class BoundedWMSTileOverlay: WMSTileOverlay {
-    let regionName: String
-    let latRange: ClosedRange<Double>
-    let lonRange: ClosedRange<Double>
-
-    init(baseURL: String, layers: String, regionName: String,
-         latRange: ClosedRange<Double>, lonRange: ClosedRange<Double>,
-         crs: String = "EPSG:3857", format: String = "image/png", extraParams: String = "",
-         minZoom: Int = 0) {
-        self.regionName = regionName
-        self.latRange = latRange
-        self.lonRange = lonRange
-        super.init(baseURL: baseURL, layers: layers, crs: crs, format: format, extraParams: extraParams, minZoom: minZoom)
-    }
-
-    override func loadTile(at path: MKTileOverlayPath, result: @escaping (Data?, (any Error)?) -> Void) {
-        let n = pow(2.0, Double(path.z))
-        let lonLeft = Double(path.x) / n * 360.0 - 180.0
-        let lonRight = Double(path.x + 1) / n * 360.0 - 180.0
-        let latTop = atan(sinh(.pi * (1 - 2 * Double(path.y) / n))) * 180.0 / .pi
-        let latBottom = atan(sinh(.pi * (1 - 2 * Double(path.y + 1) / n))) * 180.0 / .pi
-
-        // Skip tiles that don't overlap this region's bounds
-        let overlaps = lonRight >= lonRange.lowerBound && lonLeft <= lonRange.upperBound &&
-                       latTop >= latRange.lowerBound && latBottom <= latRange.upperBound
-        guard overlaps else {
-            result(nil, nil)
-            return
-        }
-
-        super.loadTile(at: path, result: result)
-    }
-}
-
-// MARK: - CROME English counties (from WMS GetCapabilities sublayers)
-
-struct CROMECounty {
-    let name: String       // Display name
-    let layer: String      // WMS sublayer suffix
-    let minLat: Double, maxLat: Double
-    let minLon: Double, maxLon: Double
-
-    func overlaps(mapLat: ClosedRange<Double>, mapLon: ClosedRange<Double>) -> Bool {
-        maxLat >= mapLat.lowerBound && minLat <= mapLat.upperBound &&
-        maxLon >= mapLon.lowerBound && minLon <= mapLon.upperBound
-    }
-}
-
-enum CROMECounties {
-    // Exact bounding boxes from WMS GetCapabilities
-    static let all: [CROMECounty] = [
-        CROMECounty(name: "Bedfordshire", layer: "Bedfordshire", minLat: 51.80, maxLat: 52.33, minLon: -0.71, maxLon: -0.14),
-        CROMECounty(name: "Berkshire", layer: "Berkshire", minLat: 51.32, maxLat: 51.58, minLon: -1.59, maxLon: -0.49),
-        CROMECounty(name: "Bristol & Somerset", layer: "Bristol_and_Somerset", minLat: 50.81, maxLat: 51.55, minLon: -3.85, maxLon: -2.24),
-        CROMECounty(name: "Buckinghamshire", layer: "Buckinghamshire", minLat: 51.48, maxLat: 52.20, minLon: -1.15, maxLon: -0.45),
-        CROMECounty(name: "Cambridgeshire", layer: "Cambridgeshire", minLat: 52.00, maxLat: 52.75, minLon: -0.52, maxLon: 0.54),
-        CROMECounty(name: "Cheshire", layer: "Cheshire", minLat: 52.94, maxLat: 53.48, minLon: -3.12, maxLon: -1.97),
-        CROMECounty(name: "Cornwall", layer: "Cornwall", minLat: 49.86, maxLat: 50.94, minLon: -6.51, maxLon: -4.15),
-        CROMECounty(name: "Cumbria", layer: "Cumbria", minLat: 54.04, maxLat: 55.19, minLon: -3.67, maxLon: -2.16),
-        CROMECounty(name: "Derbyshire", layer: "Derbyshire", minLat: 52.69, maxLat: 53.54, minLon: -2.03, maxLon: -1.16),
-        CROMECounty(name: "Devon", layer: "Devon", minLat: 50.18, maxLat: 51.26, minLon: -4.68, maxLon: -2.88),
-        CROMECounty(name: "Dorset", layer: "Dorset", minLat: 50.51, maxLat: 51.08, minLon: -2.96, maxLon: -1.68),
-        CROMECounty(name: "Durham", layer: "Durham", minLat: 54.45, maxLat: 54.92, minLon: -2.36, maxLon: -1.15),
-        CROMECounty(name: "East Riding", layer: "East_Riding_of_Yorkshire", minLat: 53.57, maxLat: 54.18, minLon: -1.11, maxLon: 0.18),
-        CROMECounty(name: "East Sussex", layer: "East_Sussex", minLat: 50.72, maxLat: 51.15, minLon: -0.25, maxLon: 0.88),
-        CROMECounty(name: "Essex", layer: "Essex", minLat: 51.43, maxLat: 52.10, minLon: -0.03, maxLon: 1.31),
-        CROMECounty(name: "Gloucestershire", layer: "Gloucestershire", minLat: 51.41, maxLat: 52.11, minLon: -2.70, maxLon: -1.61),
-        CROMECounty(name: "Hampshire", layer: "Hampshire", minLat: 50.70, maxLat: 51.39, minLon: -1.96, maxLon: -0.72),
-        CROMECounty(name: "Herefordshire", layer: "Herefordshire", minLat: 51.82, maxLat: 52.40, minLon: -3.15, maxLon: -2.34),
-        CROMECounty(name: "Hertfordshire", layer: "Hertfordshire", minLat: 51.59, maxLat: 52.09, minLon: -0.75, maxLon: 0.21),
-        CROMECounty(name: "Kent", layer: "Kent", minLat: 50.90, maxLat: 51.50, minLon: 0.02, maxLon: 1.46),
-        CROMECounty(name: "Lancashire", layer: "Lancashire", minLat: 53.48, maxLat: 54.24, minLon: -3.07, maxLon: -2.04),
-        CROMECounty(name: "Leicestershire", layer: "Leicestershire", minLat: 52.39, maxLat: 52.98, minLon: -1.60, maxLon: -0.66),
-        CROMECounty(name: "Lincolnshire", layer: "Lincolnshire", minLat: 52.63, maxLat: 53.72, minLon: -0.97, maxLon: 0.38),
-        CROMECounty(name: "Norfolk", layer: "Norfolk", minLat: 52.34, maxLat: 53.00, minLon: 0.14, maxLon: 1.78),
-        CROMECounty(name: "North Yorkshire", layer: "North_Yorkshire", minLat: 53.61, maxLat: 54.65, minLon: -2.57, maxLon: -0.19),
-        CROMECounty(name: "Northamptonshire", layer: "Northamptonshire", minLat: 51.97, maxLat: 52.65, minLon: -1.34, maxLon: -0.34),
-        CROMECounty(name: "Northumberland", layer: "Northumberland", minLat: 54.78, maxLat: 55.81, minLon: -2.70, maxLon: -1.45),
-        CROMECounty(name: "Nottinghamshire", layer: "Nottinghamshire", minLat: 52.79, maxLat: 53.51, minLon: -1.35, maxLon: -0.66),
-        CROMECounty(name: "Oxfordshire", layer: "Oxfordshire", minLat: 51.46, maxLat: 52.17, minLon: -1.72, maxLon: -0.85),
-        CROMECounty(name: "Shropshire", layer: "Shropshire", minLat: 52.30, maxLat: 53.00, minLon: -3.25, maxLon: -2.23),
-        CROMECounty(name: "South Yorkshire", layer: "South_Yorkshire", minLat: 53.30, maxLat: 53.66, minLon: -1.82, maxLon: -0.87),
-        CROMECounty(name: "Staffordshire", layer: "Staffordshire", minLat: 52.42, maxLat: 53.23, minLon: -2.47, maxLon: -1.58),
-        CROMECounty(name: "Suffolk", layer: "Suffolk", minLat: 51.92, maxLat: 52.58, minLon: 0.32, maxLon: 1.77),
-        CROMECounty(name: "Surrey", layer: "Surrey", minLat: 51.06, maxLat: 51.48, minLon: -0.85, maxLon: 0.07),
-        CROMECounty(name: "Warwickshire", layer: "Warwickshire", minLat: 51.95, maxLat: 52.69, minLon: -1.96, maxLon: -1.17),
-        CROMECounty(name: "West Midlands", layer: "West_Midlands", minLat: 52.35, maxLat: 52.66, minLon: -2.21, maxLon: -1.42),
-        CROMECounty(name: "West Sussex", layer: "West_Sussex", minLat: 50.71, maxLat: 51.18, minLon: -0.96, maxLon: 0.04),
-        CROMECounty(name: "West Yorkshire", layer: "West_Yorkshire", minLat: 53.52, maxLat: 53.96, minLon: -2.17, maxLon: -1.19),
-        CROMECounty(name: "Wiltshire", layer: "Wiltshire", minLat: 50.94, maxLat: 51.70, minLon: -2.37, maxLon: -1.48),
-        CROMECounty(name: "Worcestershire", layer: "Worcestershire", minLat: 51.97, maxLat: 52.45, minLon: -2.67, maxLon: -1.76),
-    ]
-
-    /// Returns counties that overlap the given map region
-    static func overlapping(center: CLLocationCoordinate2D, span: MKCoordinateSpan) -> [CROMECounty] {
-        let latRange = (center.latitude - span.latitudeDelta / 2)...(center.latitude + span.latitudeDelta / 2)
-        let lonRange = (center.longitude - span.longitudeDelta / 2)...(center.longitude + span.longitudeDelta / 2)
-        return all.filter { $0.overlaps(mapLat: latRange, mapLon: lonRange) }
-    }
-
-    /// Create bounded tile overlays for visible counties using WMS county sublayers
-    static func makeOverlays(year: Int, visibleCenter: CLLocationCoordinate2D, visibleSpan: MKCoordinateSpan,
-                              hiddenRGBs: [(r: UInt8, g: UInt8, b: UInt8)] = []) -> [(name: String, overlay: MKTileOverlay)] {
-        let counties = overlapping(center: visibleCenter, span: visibleSpan)
-        return counties.map { county in
-            let base = BoundedWMSTileOverlay(
-                baseURL: "https://environment.data.gov.uk/spatialdata/crop-map-of-england-\(year)/wms",
-                layers: "Crop_Map_of_England_\(year)_\(county.layer)",
-                regionName: county.name,
-                latRange: county.minLat...county.maxLat,
-                lonRange: county.minLon...county.maxLon
-            )
-            if !hiddenRGBs.isEmpty {
-                let filtered = FilteredTileOverlay(source: base, hiddenRGBs: hiddenRGBs)
-                return (county.name, filtered)
-            }
-            return (county.name, base)
-        }
-    }
-}
-
-/// Factory to create tile overlays for different crop map sources.
 enum CropMapOverlayFactory {
-    static func makeTileOverlay(for source: CropMapSource) -> MKTileOverlay? {
+
+    /// Build a WMS GetMap URL template.
+    /// Uses `PROXY_BBOX` placeholder (replaced by URLProtocol with actual bbox).
+    /// For direct (non-proxy) use, `{bbox-epsg-3857}` goes in the BBOX param.
+    private static func wmsTemplate(
+        baseURL: String, layers: String,
+        format: String = "image/png",
+        extraParams: String = "",
+        wmsVersion: String = "1.1.1",
+        useProxy: Bool = false
+    ) -> String {
+        let srsParam = wmsVersion == "1.3.0" ? "CRS" : "SRS"
+        let bboxToken = useProxy ? "PROXY_BBOX" : "{bbox-epsg-3857}"
+        var url = "\(baseURL)?SERVICE=WMS&VERSION=\(wmsVersion)&REQUEST=GetMap" +
+            "&LAYERS=\(layers)&\(srsParam)=EPSG:3857&BBOX=\(bboxToken)" +
+            "&WIDTH=256&HEIGHT=256&FORMAT=\(format)&TRANSPARENT=TRUE&STYLES="
+        if !extraParams.isEmpty { url += "&\(extraParams)" }
+        return url
+    }
+
+    /// Wrap a WMS URL template in the arccrop-wms:// proxy scheme.
+    /// Format: `arccrop-wms://t/{bbox-epsg-3857}/BASE64URL?filter=...&crs4326=1`
+    static func proxyURL(template: String, needs4326: Bool, filterColors: [(r: UInt8, g: UInt8, b: UInt8)] = []) -> String {
+        // Base64url-encode the real URL template (contains PROXY_BBOX placeholder)
+        let base64 = Data(template.utf8).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+
+        // Use http:// with a fake hostname so MapLibre's networking passes it to NSURLSession.
+        // {bbox-epsg-3857} goes in the path so MapLibre substitutes it.
+        var proxyURL = "http://\(WMSTileURLProtocol.proxyHost)/t/{bbox-epsg-3857}/\(base64)"
+
+        var queryParts: [String] = []
+        if needs4326 { queryParts.append("crs4326=1") }
+        if !filterColors.isEmpty {
+            let colorStr = filterColors.map { "\($0.r),\($0.g),\($0.b)" }.joined(separator: "|")
+            queryParts.append("filter=\(colorStr)")
+        }
+        if !queryParts.isEmpty {
+            proxyURL += "?" + queryParts.joined(separator: "&")
+        }
+        return proxyURL
+    }
+
+    /// Create WMS source parameters for a crop map source.
+    /// Returns nil for sources that are not WMS-based (GEOGLAM, auth-required, etc.)
+    static func sourceParams(for source: CropMapSource) -> WMSSourceParams? {
         switch source {
-        case .usdaCDL(let year):
-            return WMSTileOverlay(
-                baseURL: "https://nassgeodata.gmu.edu/CropScapeService/wms_cdlall.cgi",
-                layers: "cdl_\(year)",
-                crs: "EPSG:4326",   // USDA only supports 4326 + 5070
-                maxZoom: 17
-            )
-        case .jrcEUCropMap(let year):
-            return WMSTileOverlay(
-                baseURL: "https://jeodpp.jrc.ec.europa.eu/jeodpp/services/ows/wms/landcover/eucropmap",
-                layers: "LC.EUCROPMAP.\(year)",
-                maxZoom: 18
-            )
-        case .cromeEngland(let year):
-            // Use full England layer — WMS renders all counties together
-            return WMSTileOverlay(
-                baseURL: "https://environment.data.gov.uk/spatialdata/crop-map-of-england-\(year)/wms",
-                layers: "Crop_Map_of_England_\(year)",
-                maxZoom: 19
-            )
+        case .usdaCDL(year: let year):
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://nassgeodata.gmu.edu/CropScapeService/wms_cdlall.cgi",
+                    layers: "cdl_\(year)"),
+                minZoom: 0, maxZoom: 17, needs4326: true)
+
+        case .jrcEUCropMap(year: let year):
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://jeodpp.jrc.ec.europa.eu/jeodpp/services/ows/wms/landcover/eucropmap",
+                    layers: "LC.EUCROPMAP.\(year)"),
+                minZoom: 0, maxZoom: 18, needs4326: false)
+
+        case .cromeEngland(year: let year):
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://environment.data.gov.uk/spatialdata/crop-map-of-england-\(year)/wms",
+                    layers: "Crop_Map_of_England_\(year)"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
         case .dlrCropTypes:
-            return WMSTileOverlay(
-                baseURL: "https://geoservice.dlr.de/eoc/land/wms",
-                layers: "CROPTYPES_DE_P1Y",
-                extraParams: "STYLES=croptypes",
-                maxZoom: 18
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://geoservice.dlr.de/eoc/land/wms",
+                    layers: "CROPTYPES_DE_P1Y",
+                    extraParams: "STYLES=croptypes"),
+                minZoom: 0, maxZoom: 18, needs4326: false)
+
         case .rpgFrance:
-            return WMSTileOverlay(
-                baseURL: "https://data.geopf.fr/wms-r/wms",
-                layers: "LANDUSE.AGRICULTURE.LATEST",
-                maxZoom: 19,
-                wmsVersion: "1.3.0"
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://data.geopf.fr/wms-r/wms",
+                    layers: "LANDUSE.AGRICULTURE.LATEST",
+                    wmsVersion: "1.3.0"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
         case .brpNetherlands:
-            return WMSTileOverlay(
-                baseURL: "https://service.pdok.nl/rvo/brpgewaspercelen/wms/v1_0",
-                layers: "BrpGewas",
-                maxZoom: 19,
-                wmsVersion: "1.3.0"
-            )
-        case .aafcCanada(let year):
-            return WMSTileOverlay(
-                baseURL: "https://www.agr.gc.ca/imagery-images/services/annual_crop_inventory/\(year)/ImageServer/WMSServer",
-                layers: "\(year):annual_crop_inventory",
-                maxZoom: 17
-            )
-        case .esaWorldCover:
-            return WMSTileOverlay(
-                baseURL: "https://services.terrascope.be/wms/v2",
-                layers: "WORLDCOVER_2021_MAP",
-                maxZoom: 18
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://service.pdok.nl/rvo/brpgewaspercelen/wms/v1_0",
+                    layers: "BrpGewas",
+                    wmsVersion: "1.3.0"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
+        case .aafcCanada(year: let year):
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://www.agr.gc.ca/imagery-images/services/annual_crop_inventory/\(year)/ImageServer/WMSServer",
+                    layers: "\(year):annual_crop_inventory"),
+                minZoom: 0, maxZoom: 17, needs4326: false)
+
+        case .esaWorldCover(year: let year):
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://services.terrascope.be/wms/v2",
+                    layers: "WORLDCOVER_\(year)_MAP"),
+                minZoom: 0, maxZoom: 18, needs4326: false)
+
         case .worldCereal:
-            return WMSTileOverlay(
-                baseURL: "https://services.terrascope.be/wms/v2",
-                layers: "WORLDCEREAL_TEMPORARYCROPS_V1",
-                maxZoom: 18
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://services.terrascope.be/wms/v2",
+                    layers: "WORLDCEREAL_TEMPORARYCROPS_V1"),
+                minZoom: 0, maxZoom: 18, needs4326: false)
+
         case .worldCerealMaize:
-            return WMSTileOverlay(
-                baseURL: "https://services.terrascope.be/wms/v2",
-                layers: "WORLDCEREAL_MAIZE_V1",
-                maxZoom: 18
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://services.terrascope.be/wms/v2",
+                    layers: "WORLDCEREAL_MAIZE_V1"),
+                minZoom: 0, maxZoom: 18, needs4326: false)
+
         case .worldCerealWinterCereals:
-            return WMSTileOverlay(
-                baseURL: "https://services.terrascope.be/wms/v2",
-                layers: "WORLDCEREAL_WINTERCEREALS_V1",
-                maxZoom: 18
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://services.terrascope.be/wms/v2",
+                    layers: "WORLDCEREAL_WINTERCEREALS_V1"),
+                minZoom: 0, maxZoom: 18, needs4326: false)
+
         case .worldCerealSpringCereals:
-            return WMSTileOverlay(
-                baseURL: "https://services.terrascope.be/wms/v2",
-                layers: "WORLDCEREAL_SPRINGCEREALS_V1",
-                maxZoom: 18
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://services.terrascope.be/wms/v2",
+                    layers: "WORLDCEREAL_SPRINGCEREALS_V1"),
+                minZoom: 0, maxZoom: 18, needs4326: false)
+
         case .invekosAustria:
-            return WMSTileOverlay(
-                baseURL: "https://inspire.lfrz.gv.at/009501/wms",
-                layers: "inspire_feldstuecke_2025-2",
-                maxZoom: 19,
-                wmsVersion: "1.3.0"
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://inspire.lfrz.gv.at/009501/wms",
+                    layers: "inspire_feldstuecke_2025-2",
+                    wmsVersion: "1.3.0"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
         case .alvFlanders:
-            return WMSTileOverlay(
-                baseURL: "https://geo.api.vlaanderen.be/ALV/wms",
-                layers: "LbGebrPerc2024",
-                maxZoom: 19,
-                wmsVersion: "1.3.0"
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://geo.api.vlaanderen.be/ALV/wms",
+                    layers: "LbGebrPerc2024",
+                    wmsVersion: "1.3.0"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
         case .sigpacSpain:
-            return WMSTileOverlay(
-                baseURL: "https://wms.mapa.gob.es/sigpac/wms",
-                layers: "AU.Sigpac:recinto",
-                maxZoom: 19
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://wms.mapa.gob.es/sigpac/wms",
+                    layers: "AU.Sigpac:recinto"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
         case .fvmDenmark:
-            return WMSTileOverlay(
-                baseURL: "https://geodata.fvm.dk/geoserver/ows",
-                layers: "Marker_2024",
-                maxZoom: 19
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://geodata.fvm.dk/geoserver/ows",
+                    layers: "Marker_2024"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
         case .lpisCzechia:
-            return WMSTileOverlay(
-                baseURL: "https://mze.gov.cz/public/app/wms/public_DPB_PB_OPV.fcgi",
-                layers: "DPB_UCINNE",
-                maxZoom: 19
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://mze.gov.cz/public/app/wms/public_DPB_PB_OPV.fcgi",
+                    layers: "DPB_UCINNE"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
         case .gerkSlovenia:
-            return WMSTileOverlay(
-                baseURL: "https://storitve.eprostor.gov.si/ows-pub-wms/SI.MKGP.GERK/ows",
-                layers: "RKG_BLOK_GERK",
-                maxZoom: 19,
-                wmsVersion: "1.3.0"
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://storitve.eprostor.gov.si/ows-pub-wms/SI.MKGP.GERK/ows",
+                    layers: "RKG_BLOK_GERK",
+                    wmsVersion: "1.3.0"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
         case .arkodCroatia:
-            return WMSTileOverlay(
-                baseURL: "https://servisi.apprrr.hr/NIPP/wms",
-                layers: "hr.land_parcels",
-                crs: "EPSG:4326",
-                maxZoom: 19
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://servisi.apprrr.hr/NIPP/wms",
+                    layers: "hr.land_parcels"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
         case .gsaaEstonia:
-            return WMSTileOverlay(
-                baseURL: "https://kls.pria.ee/geoserver/inspire_gsaa/wms",
-                layers: "inspire_gsaa",
-                maxZoom: 19,
-                wmsVersion: "1.3.0"
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://kls.pria.ee/geoserver/inspire_gsaa/wms",
+                    layers: "LU.GSAA.AGRICULTURAL_PARCELS",
+                    wmsVersion: "1.3.0"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
         case .latviaFieldBlocks:
-            return WMSTileOverlay(
-                baseURL: "https://karte.lad.gov.lv/arcgis/services/lauku_bloki/MapServer/WMSServer",
-                layers: "0",
-                crs: "EPSG:4326",
-                maxZoom: 19
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://karte.lad.gov.lv/arcgis/services/lauku_bloki/MapServer/WMSServer",
+                    layers: "0"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
         case .ifapPortugal:
-            return WMSTileOverlay(
-                baseURL: "https://www.ifap.pt/isip/ows/isip.data/wms",
-                layers: "Parcelas_2019_Centro",
-                maxZoom: 19,
-                wmsVersion: "1.3.0"
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://www.ifap.pt/isip/ows/isip.data/wms",
+                    layers: "isip.data:ocupacoes.solo.Centro_N.2017jun10",
+                    wmsVersion: "1.3.0"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
         case .lpisPoland:
-            return WMSTileOverlay(
-                baseURL: "https://mapy.geoportal.gov.pl/wss/ext/arimr_lpis",
-                layers: "14",  // Mazowieckie (Warsaw region) as default
-                crs: "EPSG:4326",
-                maxZoom: 19
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://mapy.geoportal.gov.pl/wss/ext/arimr_lpis",
+                    layers: "14"),
+                minZoom: 0, maxZoom: 19, needs4326: true)
+
         case .jordbrukSweden:
-            return WMSTileOverlay(
-                baseURL: "https://epub.sjv.se/inspire/inspire/wms",
-                layers: "jordbruksblock",
-                maxZoom: 19
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://epub.sjv.se/inspire/inspire/wms",
+                    layers: "arslager_block"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
         case .flikLuxembourg:
-            return WMSTileOverlay(
-                baseURL: "https://wms.inspire.geoportail.lu/geoserver/af/wms",
-                layers: "af:asta_flik_parcels",
-                maxZoom: 19,
-                wmsVersion: "1.3.0"
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://wms.inspire.geoportail.lu/geoserver/af/wms",
+                    layers: "LU.ExistingLandUseObject_LPIS_2024",
+                    wmsVersion: "1.3.0"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
         case .blwSwitzerland:
-            return WMSTileOverlay(
-                baseURL: "https://wms.geo.admin.ch/",
-                layers: "ch.blw.landwirtschaftliche-nutzungsflaechen",
-                crs: "EPSG:4326",
-                maxZoom: 19,
-                wmsVersion: "1.3.0"
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://wms.geo.admin.ch/",
+                    layers: "ch.blw.landwirtschaftliche-nutzungsflaechen",
+                    wmsVersion: "1.3.0"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
         case .abaresAustralia:
-            return WMSTileOverlay(
-                baseURL: "https://di-daa.img.arcgis.com/arcgis/services/Land_and_vegetation/Catchment_Scale_Land_Use_Simplified/ImageServer/WMSServer",
-                layers: "Catchment_Scale_Land_Use_Simplified",
-                crs: "EPSG:4326",
-                maxZoom: 17,
-                wmsVersion: "1.3.0"
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://di-daa.img.arcgis.com/arcgis/services/Land_and_vegetation/Catchment_Scale_Land_Use_Simplified/ImageServer/WMSServer",
+                    layers: "Catchment_Scale_Land_Use_Simplified",
+                    wmsVersion: "1.3.0"),
+                minZoom: 0, maxZoom: 17, needs4326: false)
+
         case .lcdbNewZealand:
-            return WMSTileOverlay(
-                baseURL: "https://maps.scinfo.org.nz/lcdb/wms",
-                layers: "lcdb_lcdb6",
-                crs: "EPSG:4326",
-                maxZoom: 17
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://maps.scinfo.org.nz/lcdb/wms",
+                    layers: "lcdb_lcdb6"),
+                minZoom: 0, maxZoom: 17, needs4326: false)
+
         case .geoIntaArgentina:
-            return WMSTileOverlay(
-                baseURL: "https://geo-backend.inta.gob.ar/geoserver/wms",
-                layers: "geonode:mnc_verano2024_f300268fd112b0ec3ef5f731edb78882",
-                crs: "EPSG:4326",
-                maxZoom: 17,
-                wmsVersion: "1.3.0"
-            )
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://geo-backend.inta.gob.ar/geoserver/wms",
+                    layers: "geonode:mnc_verano2024_f300268fd112b0ec3ef5f731edb78882",
+                    wmsVersion: "1.3.0"),
+                minZoom: 0, maxZoom: 17, needs4326: false)
+
         default:
             return nil
         }
     }
-}
 
-// MARK: - OS Data Hub field boundary overlay
-
-final class OSFieldBoundaryOverlay: MKTileOverlay {
-    let apiKey: String
-
-    init(apiKey: String) {
-        self.apiKey = apiKey
-        // OS Maps API ZXY endpoint - "Outdoor" style shows field boundaries clearly
-        super.init(urlTemplate: "https://api.os.uk/maps/raster/v1/zxy/Outdoor_3857/{z}/{x}/{y}.png?key=\(apiKey)")
-        self.canReplaceMapContent = false
-        self.tileSize = CGSize(width: 256, height: 256)
-        self.maximumZ = 20
+    /// OS Field Boundary tile URL template (ZXY, no WMS)
+    static func osFieldBoundaryTemplate(apiKey: String) -> String {
+        "https://api.os.uk/maps/raster/v1/zxy/Outdoor_3857/{z}/{x}/{y}.png?key=\(apiKey)"
     }
-}
 
-// MARK: - LSIB political boundaries overlay
-
-final class LSIBOverlay: WMSTileOverlay {
-    init() {
-        super.init(
-            baseURL: "https://services.geodata.state.gov/geoserver/lsib/wms",
-            layers: "lsib:LSIB"
-        )
-    }
+    /// LSIB political boundaries WMS URL template
+    static let lsibTemplate: String = {
+        let base = "https://services.geodata.state.gov/geoserver/lsib/wms"
+        return "\(base)?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap" +
+            "&LAYERS=lsib:LSIB&SRS=EPSG:3857&BBOX={bbox-epsg-3857}" +
+            "&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=TRUE&STYLES="
+    }()
 }
 
 // MARK: - Color extraction utility
 
 enum LegendColorExtractor {
-    /// Convert legend entries' SwiftUI Colors to RGB byte tuples for pixel filtering
+    /// Convert legend entries' SwiftUI Colors to RGB byte tuples for pixel filtering.
+    /// Forces sRGB color space to match the CGContext used in filterPixels.
     static func rgbValues(for entries: [LegendEntry], matching labels: Set<String>) -> [(r: UInt8, g: UInt8, b: UInt8)] {
         entries.compactMap { entry in
             guard labels.contains(entry.label) else { return nil }
             let uiColor = UIColor(entry.color)
-            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0
-            uiColor.getRed(&r, green: &g, blue: &b, alpha: nil)
-            return (r: UInt8(r * 255), g: UInt8(g * 255), b: UInt8(b * 255))
+            // Extract in sRGB to match the sRGB CGContext in filterPixels
+            guard let srgb = uiColor.cgColor.converted(
+                to: CGColorSpace(name: CGColorSpace.sRGB)!,
+                intent: .defaultIntent, options: nil
+            ), let c = srgb.components, c.count >= 3 else {
+                // Fallback to getRed
+                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0
+                uiColor.getRed(&r, green: &g, blue: &b, alpha: nil)
+                return (r: UInt8(r * 255), g: UInt8(g * 255), b: UInt8(b * 255))
+            }
+            return (r: UInt8(c[0] * 255), g: UInt8(c[1] * 255), b: UInt8(c[2] * 255))
         }
     }
 }

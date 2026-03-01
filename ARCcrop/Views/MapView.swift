@@ -1,5 +1,6 @@
 import SwiftUI
 import MapKit
+import MapLibre
 
 #if !os(tvOS)
 struct MapView: View {
@@ -12,7 +13,6 @@ struct MapView: View {
     /// When not syncing, use the focused layer's range.
     private var effectiveYearRange: ClosedRange<Int>? {
         if settings.syncYearAcrossLayers && settings.activeCropMaps.count > 1 {
-            // Union of all active layers that have year ranges
             var lo = Int.max, hi = Int.min
             var hasAny = false
             for source in settings.activeCropMaps {
@@ -35,8 +35,8 @@ struct MapView: View {
                 MapContainerView(
                     activeCropMaps: settings.activeCropMaps,
                     layerOpacity: settings.layerOpacity,
-                    mapType: settings.effectiveMapType,
-                    isBlank: settings.mapStyle == .blank,
+                    mapStyle: settings.mapStyle,
+                    showBorders: settings.showBorders,
                     hiddenClasses: settings.hiddenClasses,
                     showFieldBoundaries: settings.showFieldBoundaries,
                     showPoliticalBoundaries: settings.showPoliticalBoundaries,
@@ -54,7 +54,6 @@ struct MapView: View {
                             range: yearRange
                         ) { newYear in
                             if settings.syncYearAcrossLayers && settings.activeCropMaps.count > 1 {
-                                // Update all layers to closest available year
                                 for i in settings.activeCropMaps.indices {
                                     settings.activeCropMaps[i] = settings.activeCropMaps[i].withClosestYear(newYear)
                                 }
@@ -83,7 +82,6 @@ struct MapView: View {
                         mapCenter: settings.mapCenter
                     )
 
-                    // Layer opacity control (only when at least one crop map is active)
                     if !settings.activeCropMaps.isEmpty {
                         LayerOpacityControl()
                     }
@@ -94,14 +92,13 @@ struct MapView: View {
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
 
-                // Bottom-left: legends (multi-layer) + zoom level bottom-right
+                // Bottom-left: legends + zoom level bottom-right
                 VStack {
                     Spacer()
                     HStack(alignment: .bottom) {
                         MultiLegendView()
                             .padding(8)
                         Spacer()
-                        // Zoom level indicator
                         Text("z\(String(format: "%.1f", settings.mapZoomLevel))")
                             .font(.system(size: 10, weight: .medium, design: .monospaced))
                             .foregroundStyle(.secondary)
@@ -150,7 +147,6 @@ struct MapView: View {
                         name: .mapZoomToCoordinate, object: nil,
                         userInfo: ["coordinate": coordinate]
                     )
-                    // Auto-switch crop map if current doesn't cover new location (only when auto mode on)
                     if settings.autoBestMap {
                         let current = settings.selectedCropMap
                         if current != .none,
@@ -220,7 +216,6 @@ struct StatusBannerView: View {
     var body: some View {
         VStack(spacing: 2) {
             if isMultiLine {
-                // Multi-line results (e.g. crop history) — vertical scroll
                 ScrollView(.vertical, showsIndicators: true) {
                     Text(message)
                         .font(.caption2)
@@ -300,7 +295,6 @@ struct MapControlsMenu: View {
     var hasOSKey: Bool
     var mapCenter: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 51.5, longitude: -0.1)
 
-    /// Whether the UK is currently in/near the map view
     private var isNearUK: Bool {
         mapCenter.latitude >= 49 && mapCenter.latitude <= 61 &&
         mapCenter.longitude >= -11 && mapCenter.longitude <= 3
@@ -547,14 +541,13 @@ struct YearStepperView: View {
     }
 }
 
-// MARK: - Layer opacity control (vertical slider + horizontal layer cycling)
+// MARK: - Layer opacity control
 
 struct LayerOpacityControl: View {
     @Environment(AppSettings.self) private var settings
 
     var body: some View {
         VStack(spacing: 2) {
-            // Layer indicator dots (one per active layer)
             if settings.activeCropMaps.count > 1 {
                 HStack(spacing: 3) {
                     ForEach(Array(settings.activeCropMaps.enumerated()), id: \.element.id) { idx, _ in
@@ -563,8 +556,6 @@ struct LayerOpacityControl: View {
                             .frame(width: 5, height: 5)
                     }
                 }
-
-                // Focused layer name
                 Text(settings.focusedCropMap.sourceName)
                     .font(.system(size: 7))
                     .foregroundStyle(.secondary)
@@ -572,7 +563,6 @@ struct LayerOpacityControl: View {
                     .frame(maxWidth: 50)
             }
 
-            // Vertical slider for focused layer opacity
             Slider(value: Binding(
                 get: { settings.opacity(for: settings.focusedCropMap) },
                 set: { settings.layerOpacity[settings.focusedCropMap.id] = $0 }
@@ -586,7 +576,6 @@ struct LayerOpacityControl: View {
         .gesture(
             DragGesture(minimumDistance: 20)
                 .onEnded { value in
-                    // Horizontal swipe to cycle layers
                     guard abs(value.translation.width) > abs(value.translation.height) * 1.5 else { return }
                     let count = settings.activeCropMaps.count
                     guard count > 1 else { return }
@@ -600,13 +589,25 @@ struct LayerOpacityControl: View {
     }
 }
 
-// MARK: - MKMapView wrapper
+// MARK: - MapLibre network delegate (injects URLProtocol into MapLibre's session)
+
+final class MapLibreNetworkDelegate: NSObject, MLNNetworkConfigurationDelegate {
+    func session(for configuration: MLNNetworkConfiguration) -> URLSession {
+        let config = URLSessionConfiguration.default
+        config.protocolClasses = [WMSTileURLProtocol.self] + (config.protocolClasses ?? [])
+        config.urlCache = URLCache(memoryCapacity: 128 * 1024 * 1024, diskCapacity: 1024 * 1024 * 1024)
+        config.requestCachePolicy = .returnCacheDataElseLoad
+        return URLSession(configuration: config)
+    }
+}
+
+// MARK: - MapLibre map wrapper
 
 struct MapContainerView: UIViewRepresentable {
     var activeCropMaps: [CropMapSource]
     var layerOpacity: [String: Double]
-    var mapType: UInt
-    var isBlank: Bool
+    var mapStyle: MapStyle
+    var showBorders: Bool
     var hiddenClasses: Set<String>
     var showFieldBoundaries: Bool
     var showPoliticalBoundaries: Bool
@@ -614,301 +615,452 @@ struct MapContainerView: UIViewRepresentable {
     var showFTWBoundaries: Bool
     var showLabelsAbove: Bool
 
-    func makeUIView(context: Context) -> MKMapView {
-        let mapView = MKMapView()
-        mapView.delegate = context.coordinator
-        mapView.mapType = MKMapType(rawValue: mapType) ?? .hybrid
-        mapView.showsUserLocation = true
-        mapView.isZoomEnabled = true
-        mapView.isScrollEnabled = true
-        mapView.isPitchEnabled = false
-        mapView.isRotateEnabled = false
+    /// Build a MapLibre style JSON for the given base map and write it to a temp file.
+    private static func writeStyleJSON(mapStyle: MapStyle) -> URL {
+        let esri = "https://server.arcgisonline.com/ArcGIS/rest/services"
+        let tileURL: String?
+        let bgColor: String
 
+        switch mapStyle {
+        case .satellite:
+            tileURL = "\(esri)/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            bgColor = "#000000"
+        case .hybrid:
+            // Satellite + labels overlay
+            tileURL = "\(esri)/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            bgColor = "#000000"
+        case .standard:
+            tileURL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+            bgColor = "#e8e4d8"
+        case .terrain:
+            tileURL = "\(esri)/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+            bgColor = "#e8e4d8"
+        case .dark:
+            tileURL = "\(esri)/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+            bgColor = "#1a1a1a"
+        case .blank:
+            tileURL = nil
+            bgColor = "#1f1f1f"
+        }
+
+        var sources = ""
+        var layers = """
+        {"id":"background","type":"background","paint":{"background-color":"\(bgColor)"}}
+        """
+
+        if let tileURL {
+            sources = """
+            "basemap-src":{"type":"raster","tiles":["\(tileURL)"],"tileSize":256,"maxzoom":19}
+            """
+            layers += """
+            ,{"id":"basemap","type":"raster","source":"basemap-src"}
+            """
+        }
+
+        // Hybrid: add labels overlay on top of satellite
+        if mapStyle == .hybrid {
+            sources += """
+            ,"labels-src":{"type":"raster","tiles":["\(esri)/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"],"tileSize":256,"maxzoom":19}
+            """
+            layers += """
+            ,{"id":"labels","type":"raster","source":"labels-src"}
+            """
+        }
+
+        let json = """
+        {"version":8,"sources":{\(sources)},"layers":[\(layers)]}
+        """
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("arccrop_style.json")
+        try? json.data(using: .utf8)?.write(to: url)
+        return url
+    }
+
+    /// Strong reference to the network delegate so it doesn't get deallocated (MapLibre holds weak ref)
+    private static var networkDelegate: MapLibreNetworkDelegate?
+
+    func makeUIView(context: Context) -> MLNMapView {
+        // Set up the network delegate so MapLibre uses our custom URLSession
+        // (which includes WMSTileURLProtocol for arccrop-filter:// interception).
+        if Self.networkDelegate == nil {
+            let delegate = MapLibreNetworkDelegate()
+            Self.networkDelegate = delegate
+            MLNNetworkConfiguration.sharedManager.delegate = delegate
+        }
+        // Also register globally (for URLSession.shared fallback)
+        URLProtocol.registerClass(WMSTileURLProtocol.self)
+
+        let styleURL = Self.writeStyleJSON(mapStyle: mapStyle)
+        let mapView = MLNMapView(frame: .zero, styleURL: styleURL)
+        mapView.delegate = context.coordinator
+        mapView.showsUserLocation = true
+        mapView.allowsRotating = false
+        mapView.allowsTilting = false
+
+        // Set MapLibre ambient cache size
+        let cacheMB = AppSettings.shared.cacheSizeMB
+        MLNOfflineStorage.shared.setMaximumAmbientCacheSize(UInt(cacheMB) * 1024 * 1024) { _ in }
+
+        // Zoom-to-coordinate notification
         NotificationCenter.default.addObserver(
             forName: .mapZoomToCoordinate, object: nil, queue: .main
         ) { notification in
             if let coord = notification.userInfo?["coordinate"] as? CLLocationCoordinate2D {
-                let region = MKCoordinateRegion(center: coord, latitudinalMeters: 50_000, longitudinalMeters: 50_000)
-                mapView.setRegion(region, animated: true)
+                mapView.setCenter(coord, zoomLevel: 10, animated: true)
             }
         }
 
-        // Long press to identify crop class at pixel
+        // Long press for crop identification
         let longPress = UILongPressGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleLongPress(_:)))
         longPress.minimumPressDuration = 0.5
         mapView.addGestureRecognizer(longPress)
-        context.coordinator.mapView = mapView
+
+        let coord = context.coordinator
+        coord.mapView = mapView
+        coord.currentSources = activeCropMaps
+        coord.currentMapStyle = mapStyle
+        coord.currentShowBorders = showBorders
+        coord.currentHidden = hiddenClasses
+        coord.currentOpacities = layerOpacity
+        coord.showingFieldBoundaries = showFieldBoundaries
+        coord.showingPoliticalBoundaries = showPoliticalBoundaries
+        coord.showingFTWBoundaries = showFTWBoundaries
 
         return mapView
     }
 
-    func updateUIView(_ mapView: MKMapView, context: Context) {
-        let newType = MKMapType(rawValue: mapType) ?? .hybrid
-        if mapView.mapType != newType {
-            let savedRegion = mapView.region
-            mapView.mapType = newType
-            mapView.setRegion(savedRegion, animated: false)
-        }
-
+    func updateUIView(_ mapView: MLNMapView, context: Context) {
         let coord = context.coordinator
-        let sourcesChanged = coord.currentSources.map(\.id) != activeCropMaps.map(\.id)
-        let styleChanged = coord.currentMapType != mapType || coord.wasBlank != isBlank
-        let filterChanged = coord.currentHidden != hiddenClasses
-        let fieldBoundaryChanged = coord.showingFieldBoundaries != showFieldBoundaries
-        let politicalChanged = coord.showingPoliticalBoundaries != showPoliticalBoundaries
-        let masterMapChanged = coord.showingMasterMap != showMasterMap
-        let ftwChanged = coord.showingFTWBoundaries != showFTWBoundaries
-        let refOverlayChanged = fieldBoundaryChanged || politicalChanged || masterMapChanged || ftwChanged
-        let opacityChanged = coord.currentOpacities != layerOpacity
-        let labelsChanged = coord.currentLabelsAbove != showLabelsAbove
-
-        // Update opacity on existing renderers without rebuilding
-        if opacityChanged {
+        guard let style = mapView.style, coord.styleLoaded else {
+            // Style not loaded yet — store pending state
+            coord.currentSources = activeCropMaps
+            coord.currentMapStyle = mapStyle
+            coord.currentShowBorders = showBorders
+            coord.currentHidden = hiddenClasses
             coord.currentOpacities = layerOpacity
-            for overlay in mapView.overlays {
-                if Self.isReferenceOverlay(overlay) { continue }
-                if let sourceID = coord.overlaySourceMap[ObjectIdentifier(overlay as AnyObject)],
-                   let renderer = mapView.renderer(for: overlay) {
-                    renderer.alpha = CGFloat(layerOpacity[sourceID] ?? 1.0)
-                }
-            }
-        }
-
-        // Re-order overlays when labels-above setting changes (no data reload needed)
-        if labelsChanged && !sourcesChanged && !filterChanged {
-            coord.currentLabelsAbove = showLabelsAbove
-            let newLevel: MKOverlayLevel = showLabelsAbove ? .aboveRoads : .aboveLabels
-            let allOverlays = mapView.overlays
-            mapView.removeOverlays(allOverlays)
-            for overlay in allOverlays {
-                if Self.isReferenceOverlay(overlay) {
-                    mapView.addOverlay(overlay, level: .aboveLabels)
-                } else {
-                    mapView.addOverlay(overlay, level: newLevel)
-                }
-            }
-        }
-
-        // Only rebuild overlays if something actually changed
-        guard sourcesChanged || styleChanged || filterChanged || refOverlayChanged else { return }
-
-        // For style/overlay-only changes, just toggle reference overlays without touching data overlays
-        if !sourcesChanged && !filterChanged {
-            coord.currentMapType = mapType
-            coord.wasBlank = isBlank
-            Self.syncReferenceOverlays(on: mapView, coord: coord,
-                                        showFieldBoundaries: showFieldBoundaries,
-                                        showPoliticalBoundaries: showPoliticalBoundaries,
-                                        showMasterMap: showMasterMap,
-                                        showFTWBoundaries: showFTWBoundaries,
-                                        isBlank: isBlank)
+            coord.showingFieldBoundaries = showFieldBoundaries
+            coord.showingPoliticalBoundaries = showPoliticalBoundaries
+            coord.showingFTWBoundaries = showFTWBoundaries
             return
         }
 
-        // Detect newly added sources (for zoom-to-coverage)
-        let oldIDs = Set(coord.currentSources.map(\.id))
-        let newIDs = Set(activeCropMaps.map(\.id))
-        let addedIDs = newIDs.subtracting(oldIDs)
+        let basemapChanged = coord.currentMapStyle != mapStyle || coord.currentShowBorders != showBorders
+        let sourcesChanged = coord.currentSources.map(\.id) != activeCropMaps.map(\.id)
+        let opacityChanged = coord.currentOpacities != layerOpacity
+        let filterChanged = coord.currentHidden != hiddenClasses
+        let fieldBoundaryChanged = coord.showingFieldBoundaries != showFieldBoundaries
+        let politicalChanged = coord.showingPoliticalBoundaries != showPoliticalBoundaries
+        let ftwChanged = coord.showingFTWBoundaries != showFTWBoundaries
+        let refOverlayChanged = fieldBoundaryChanged || politicalChanged || ftwChanged
 
-        coord.currentSources = activeCropMaps
-        coord.currentMapType = mapType
-        coord.wasBlank = isBlank
-        coord.currentHidden = hiddenClasses
-        coord.currentLabelsAbove = showLabelsAbove
-        coord.currentOpacities = layerOpacity
-        coord.hasAutoSwitched = false
-
-        // Remove all overlays and rebuild
-        mapView.removeOverlays(mapView.overlays)
-        coord.geoglamRenderer = nil
-        coord.overlaySourceMap = [:]
-        ActivityLog.shared.resetTileProgress()
-
-        // Dark tile base when "No Base Map"
-        if isBlank {
-            mapView.addOverlay(BlankTileOverlay(), level: .aboveLabels)
-        }
-
-        // Zoom to coverage of newly added source (last one added)
-        if let addedSource = activeCropMaps.last, addedIDs.contains(addedSource.id),
-           let region = addedSource.coverageRegion {
-            let center = CLLocationCoordinate2D(latitude: region.lat, longitude: region.lon)
-            let covRegion = MKCoordinateRegion(
-                center: center,
-                span: MKCoordinateSpan(latitudeDelta: region.latSpan, longitudeDelta: region.lonSpan)
-            )
-            let visible = mapView.region
-            let overlaps = abs(visible.center.latitude - center.latitude) < (visible.span.latitudeDelta + region.latSpan) / 2 &&
-                           abs(visible.center.longitude - center.longitude) < (visible.span.longitudeDelta + region.lonSpan) / 2
-            if !overlaps {
-                mapView.setRegion(covRegion, animated: true)
-            }
-        }
-
-        // Compute hidden RGB values for pixel filtering
-        var allHiddenRGBs: [(r: UInt8, g: UInt8, b: UInt8)] = []
-        for source in activeCropMaps {
-            if let legend = CropMapLegendData.forSource(source), !hiddenClasses.isEmpty {
-                let rgbs = LegendColorExtractor.rgbValues(for: legend.entries, matching: hiddenClasses)
-                allHiddenRGBs.append(contentsOf: rgbs)
-            }
-        }
-
-        // Add data overlays for each active source (level depends on labels-above setting)
-        let dataLevel: MKOverlayLevel = showLabelsAbove ? .aboveRoads : .aboveLabels
-        for source in activeCropMaps {
-            let sourceOpacity = layerOpacity[source.id] ?? 1.0
-
-            // Per-source hidden RGBs
-            let sourceRGBs: [(r: UInt8, g: UInt8, b: UInt8)]
-            if let legend = CropMapLegendData.forSource(source), !hiddenClasses.isEmpty {
-                sourceRGBs = LegendColorExtractor.rgbValues(for: legend.entries, matching: hiddenClasses)
-            } else {
-                sourceRGBs = []
-            }
-
-            switch source {
-            case .none:
-                break
-            case .geoglamMajorityCrop:
-                ActivityLog.shared.activity("Loading GEOGLAM Majority Crop (reprojecting...)")
-                if let overlay = GEOGLAMOverlayManager.shared.majorityCropOverlay() {
-                    mapView.addOverlay(overlay, level: dataLevel)
-                    coord.overlaySourceMap[ObjectIdentifier(overlay)] = source.id
-                }
-            case .geoglam(let crop):
-                ActivityLog.shared.activity("Loading GEOGLAM \(crop.rawValue) (reprojecting...)")
-                if let overlay = GEOGLAMOverlayManager.shared.overlay(for: crop) {
-                    mapView.addOverlay(overlay, level: dataLevel)
-                    coord.overlaySourceMap[ObjectIdentifier(overlay)] = source.id
-                }
-            default:
-                if let tileOverlay = CropMapOverlayFactory.makeTileOverlay(for: source) {
-                    if !sourceRGBs.isEmpty {
-                        let filtered = FilteredTileOverlay(source: tileOverlay, hiddenRGBs: sourceRGBs)
-                        mapView.addOverlay(filtered, level: dataLevel)
-                        coord.overlaySourceMap[ObjectIdentifier(filtered)] = source.id
-                        ActivityLog.shared.activity("Loading \(source.sourceName) (filtering \(hiddenClasses.count) classes)")
-                    } else {
-                        mapView.addOverlay(tileOverlay, level: dataLevel)
-                        coord.overlaySourceMap[ObjectIdentifier(tileOverlay)] = source.id
-                        ActivityLog.shared.activity("Loading \(source.sourceName)")
-                    }
-                } else {
-                    ActivityLog.shared.warn("\(source.sourceName): no WMS endpoint available")
+        // Update opacity on existing layers without rebuilding
+        if opacityChanged && !sourcesChanged {
+            coord.currentOpacities = layerOpacity
+            for source in activeCropMaps {
+                if let layer = style.layer(withIdentifier: "data-\(source.id)") as? MLNRasterStyleLayer {
+                    let opacity = layerOpacity[source.id] ?? 1.0
+                    layer.rasterOpacity = NSExpression(forConstantValue: opacity)
                 }
             }
         }
 
-        // Reference overlays (political boundaries, field boundaries, MasterMap, FTW)
-        Self.syncReferenceOverlays(on: mapView, coord: coord,
-                                    showFieldBoundaries: showFieldBoundaries,
-                                    showPoliticalBoundaries: showPoliticalBoundaries,
-                                    showMasterMap: showMasterMap,
-                                    showFTWBoundaries: showFTWBoundaries,
-                                    isBlank: isBlank)
-
-        // Store hidden colors for GEOGLAM renderer
-        coord.pendingHiddenRGBs = allHiddenRGBs
-    }
-
-    /// Helper to check if an overlay is a reference/base overlay (not a data overlay)
-    private static func isReferenceOverlay(_ overlay: MKOverlay) -> Bool {
-        overlay is BlankTileOverlay || overlay is OSFieldBoundaryOverlay ||
-        overlay is LSIBOverlay || overlay is PMTileOverlay
-    }
-
-    /// Add/remove all reference overlays based on current toggle states
-    private static func syncReferenceOverlays(
-        on mapView: MKMapView, coord: Coordinator,
-        showFieldBoundaries: Bool, showPoliticalBoundaries: Bool,
-        showMasterMap: Bool, showFTWBoundaries: Bool, isBlank: Bool
-    ) {
-        // Remove existing reference overlays
-        let refs = mapView.overlays.filter { isReferenceOverlay($0) }
-        mapView.removeOverlays(refs)
-        // Also remove MasterMap polygons
-        let masterMapOverlays = mapView.overlays.filter { coord.masterMapOverlayIDs.contains(ObjectIdentifier($0 as AnyObject)) }
-        mapView.removeOverlays(masterMapOverlays)
-        coord.masterMapOverlayIDs.removeAll()
-
-        // Re-add based on current state
-        if isBlank {
-            mapView.insertOverlay(BlankTileOverlay(), at: 0, level: .aboveLabels)
+        // Base map change — reload entire style (data layers re-added in didFinishLoading)
+        if basemapChanged {
+            coord.currentMapStyle = mapStyle
+            coord.currentShowBorders = showBorders
+            coord.currentSources = activeCropMaps
+            coord.currentHidden = hiddenClasses
+            coord.currentOpacities = layerOpacity
+            coord.showingFieldBoundaries = showFieldBoundaries
+            coord.showingPoliticalBoundaries = showPoliticalBoundaries
+            coord.showingFTWBoundaries = showFTWBoundaries
+            coord.styleLoaded = false
+            mapView.styleURL = Self.writeStyleJSON(mapStyle: mapStyle)
+            return
         }
-        if showFieldBoundaries, let key = KeychainService.load(for: .osDataHub) {
-            mapView.addOverlay(OSFieldBoundaryOverlay(apiKey: key), level: .aboveLabels)
-        }
-        coord.showingFieldBoundaries = showFieldBoundaries
 
-        if showPoliticalBoundaries {
-            mapView.addOverlay(LSIBOverlay(), level: .aboveLabels)
-        }
-        coord.showingPoliticalBoundaries = showPoliticalBoundaries
+        // Data sources or filter changed — rebuild data layers
+        if sourcesChanged || filterChanged {
+            let oldIDs = Set(coord.currentSources.map(\.id))
+            let newIDs = Set(activeCropMaps.map(\.id))
+            let addedIDs = newIDs.subtracting(oldIDs)
 
-        if showFTWBoundaries {
-            let ftw = PMTileOverlay(url: URL(string: "https://data.source.coop/kerner-lab/fields-of-the-world/ftw-sources.pmtiles")!)
-            mapView.addOverlay(ftw, level: .aboveLabels)
-        }
-        coord.showingFTWBoundaries = showFTWBoundaries
+            coord.currentSources = activeCropMaps
+            coord.currentHidden = hiddenClasses
+            coord.currentOpacities = layerOpacity
+            coord.hasAutoSwitched = false
 
-        // OS MasterMap WFS — will be loaded on demand via regionDidChangeAnimated
-        coord.showingMasterMap = showMasterMap
-        if showMasterMap {
-            coord.masterMapQueryPending = true
+            // Remove all existing data layers and sources
+            coord.removeAllDataLayers(style: style)
+            ActivityLog.shared.resetTileProgress()
+
+            // Add data layers for each active source
+            coord.addDataLayers(style: style)
+
+            // Zoom to coverage of newly added source
+            if let addedSource = activeCropMaps.last, addedIDs.contains(addedSource.id),
+               let region = addedSource.coverageRegion {
+                let center = CLLocationCoordinate2D(latitude: region.lat, longitude: region.lon)
+                let visible = mapView.visibleCoordinateBounds
+                let overlaps = abs(visible.sw.latitude + visible.ne.latitude) / 2 - center.latitude <
+                    (visible.ne.latitude - visible.sw.latitude + region.latSpan) / 2 &&
+                    abs(visible.sw.longitude + visible.ne.longitude) / 2 - center.longitude <
+                    (visible.ne.longitude - visible.sw.longitude + region.lonSpan) / 2
+                if !overlaps {
+                    mapView.setCenter(center, zoomLevel: 5, animated: true)
+                }
+            }
+        }
+
+        // Reference overlays
+        if refOverlayChanged {
+            coord.showingFieldBoundaries = showFieldBoundaries
+            coord.showingPoliticalBoundaries = showPoliticalBoundaries
+            coord.showingFTWBoundaries = showFTWBoundaries
+            coord.syncReferenceOverlays(style: style)
         }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    final class Coordinator: NSObject, MKMapViewDelegate {
+    // MARK: - Coordinator
+
+    @MainActor final class Coordinator: NSObject, @preconcurrency MLNMapViewDelegate {
         var currentSources: [CropMapSource] = []
-        var currentMapType: UInt = 2
-        var wasBlank = false
+        var currentMapStyle: MapStyle = .satellite
+        var currentShowBorders = false
         var currentHidden: Set<String> = []
-        var pendingHiddenRGBs: [(r: UInt8, g: UInt8, b: UInt8)] = []
-        var geoglamRenderer: GEOGLAMOverlayRenderer?
+        var currentOpacities: [String: Double] = [:]
         var showingFieldBoundaries = false
         var showingPoliticalBoundaries = false
-        var showingMasterMap = false
         var showingFTWBoundaries = false
-        var masterMapQueryPending = false
-        var masterMapOverlayIDs: Set<ObjectIdentifier> = []
-        var currentOpacities: [String: Double] = [:]
-        var currentLabelsAbove = false
-        /// Map overlay ObjectIdentifier → source ID for per-layer opacity
-        var overlaySourceMap: [ObjectIdentifier: String] = [:]
-        /// Prevent repeated out-of-bounds auto-switch per source selection
         var hasAutoSwitched = false
-        weak var mapView: MKMapView?
+        var styleLoaded = false
+        weak var mapView: MLNMapView?
 
-        private var tileLoadLogged = false
+        // MARK: Style loaded
 
-        func mapView(_ mapView: MKMapView, didFinishRenderingMap fullyRendered: Bool) {
-            if !tileLoadLogged, !currentSources.isEmpty {
-                tileLoadLogged = true
-                let center = mapView.centerCoordinate
-                let names = currentSources.map(\.sourceName).joined(separator: ", ")
-                Task { @MainActor in
-                    ActivityLog.shared.success(
-                        "\(names) rendered at \(String(format: "%.2f", center.latitude))N, \(String(format: "%.2f", center.longitude))E"
-                    )
+        func mapView(_ mapView: MLNMapView, didFinishLoading style: MLNStyle) {
+            styleLoaded = true
+            addDataLayers(style: style)
+            syncReferenceOverlays(style: style)
+        }
+
+        // MARK: Data layer management
+
+        func removeAllDataLayers(style: MLNStyle) {
+            // Remove layers and sources with "data-" and "src-" prefixes
+            for layerID in style.layers.compactMap(\.identifier) {
+                if layerID.hasPrefix("data-") {
+                    if let layer = style.layer(withIdentifier: layerID) {
+                        style.removeLayer(layer)
+                    }
+                }
+            }
+            for sourceID in style.sources.compactMap(\.identifier) {
+                if sourceID.hasPrefix("src-") {
+                    if let source = style.source(withIdentifier: sourceID) {
+                        style.removeSource(source)
+                    }
                 }
             }
         }
 
-        /// When user pans/zooms, cancel stale tile downloads and detect out-of-bounds
-        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
-            // Update map center and zoom level; cancel stale tile downloads on zoom change
+        func addDataLayers(style: MLNStyle) {
+            for source in currentSources {
+                let sourceId = "src-\(source.id)"
+                let layerId = "data-\(source.id)"
+
+                // Skip if already exists
+                if style.source(withIdentifier: sourceId) != nil { continue }
+
+                switch source {
+                case .none:
+                    continue
+                case .geoglamMajorityCrop:
+                    ActivityLog.shared.activity("Loading GEOGLAM Majority Crop (reprojecting...)")
+                    addGEOGLAMLayer(style: style, source: source)
+                    continue
+                case .geoglam(let crop):
+                    ActivityLog.shared.activity("Loading GEOGLAM \(crop.rawValue) (reprojecting...)")
+                    addGEOGLAMLayer(style: style, source: source)
+                    continue
+                default:
+                    break
+                }
+
+                guard let params = CropMapOverlayFactory.sourceParams(for: source) else {
+                    ActivityLog.shared.warn("\(source.sourceName): no WMS endpoint available")
+                    continue
+                }
+
+                // Determine if we need the proxy (4326 reprojection or pixel filtering)
+                let filterColors: [(r: UInt8, g: UInt8, b: UInt8)]
+                if !currentHidden.isEmpty {
+                    let entries = CropMapLegendData.forSource(source)?.entries ?? []
+                    filterColors = LegendColorExtractor.rgbValues(for: entries, matching: currentHidden)
+                } else {
+                    filterColors = []
+                }
+
+                let tileURL: String
+                if params.needs4326 || !filterColors.isEmpty {
+                    // Route through URLProtocol proxy
+                    let proxyTemplate = params.tileURLTemplate
+                        .replacingOccurrences(of: "{bbox-epsg-3857}", with: "PROXY_BBOX")
+                    tileURL = CropMapOverlayFactory.proxyURL(
+                        template: proxyTemplate,
+                        needs4326: params.needs4326,
+                        filterColors: filterColors)
+                } else {
+                    // Direct URL — best performance, MapLibre caches natively
+                    tileURL = params.tileURLTemplate
+                }
+
+                let tileSource = MLNRasterTileSource(
+                    identifier: sourceId,
+                    tileURLTemplates: [tileURL],
+                    options: [
+                        .tileSize: 256,
+                        .minimumZoomLevel: params.minZoom,
+                        .maximumZoomLevel: params.maxZoom
+                    ]
+                )
+                style.addSource(tileSource)
+
+                let layer = MLNRasterStyleLayer(identifier: layerId, source: tileSource)
+                layer.rasterOpacity = NSExpression(forConstantValue: currentOpacities[source.id] ?? 1.0)
+                style.addLayer(layer)
+
+                ActivityLog.shared.activity("Loading \(source.sourceName)")
+                waitingForInitialRender = true
+                loadingStartTime = loadingStartTime ?? Date()
+            }
+        }
+
+        private func addGEOGLAMLayer(style: MLNStyle, source: CropMapSource) {
+            let image: UIImage?
+            switch source {
+            case .geoglamMajorityCrop:
+                image = GEOGLAMOverlayManager.shared.mercatorImage(for: nil)
+            case .geoglam(let crop):
+                image = GEOGLAMOverlayManager.shared.mercatorImage(for: crop)
+            default:
+                return
+            }
+
+            guard let image else { return }
+
+            let sourceId = "src-\(source.id)"
+            let layerId = "data-\(source.id)"
+
+            let quad = MLNCoordinateQuad(
+                topLeft: CLLocationCoordinate2D(latitude: 85.051, longitude: -180),
+                bottomLeft: CLLocationCoordinate2D(latitude: -85.051, longitude: -180),
+                bottomRight: CLLocationCoordinate2D(latitude: -85.051, longitude: 180),
+                topRight: CLLocationCoordinate2D(latitude: 85.051, longitude: 180)
+            )
+            let imgSource = MLNImageSource(identifier: sourceId, coordinateQuad: quad, image: image)
+            style.addSource(imgSource)
+
+            let layer = MLNRasterStyleLayer(identifier: layerId, source: imgSource)
+            layer.rasterOpacity = NSExpression(forConstantValue: currentOpacities[source.id] ?? 1.0)
+            style.addLayer(layer)
+        }
+
+        // MARK: Reference overlays (LSIB, OS, FTW)
+
+        func syncReferenceOverlays(style: MLNStyle) {
+            // Remove existing reference layers
+            for id in ["ref-lsib", "ref-os-field", "ref-ftw-fill", "ref-ftw-outline"] {
+                if let layer = style.layer(withIdentifier: id) {
+                    style.removeLayer(layer)
+                }
+            }
+            for id in ["refsrc-lsib", "refsrc-os-field", "refsrc-ftw"] {
+                if let source = style.source(withIdentifier: id) {
+                    style.removeSource(source)
+                }
+            }
+
+            // LSIB political boundaries
+            if showingPoliticalBoundaries {
+                let source = MLNRasterTileSource(
+                    identifier: "refsrc-lsib",
+                    tileURLTemplates: [CropMapOverlayFactory.lsibTemplate],
+                    options: [.tileSize: 256]
+                )
+                style.addSource(source)
+                let layer = MLNRasterStyleLayer(identifier: "ref-lsib", source: source)
+                style.addLayer(layer)
+            }
+
+            // OS Field Boundaries
+            if showingFieldBoundaries, let key = KeychainService.load(for: .osDataHub) {
+                let template = CropMapOverlayFactory.osFieldBoundaryTemplate(apiKey: key)
+                let source = MLNRasterTileSource(
+                    identifier: "refsrc-os-field",
+                    tileURLTemplates: [template],
+                    options: [.tileSize: 256, .maximumZoomLevel: 20]
+                )
+                style.addSource(source)
+                let layer = MLNRasterStyleLayer(identifier: "ref-os-field", source: source)
+                style.addLayer(layer)
+            }
+
+            // FTW field boundaries (PMTiles — native MapLibre support)
+            if showingFTWBoundaries {
+                let source = MLNVectorTileSource(
+                    identifier: "refsrc-ftw",
+                    tileURLTemplates: ["pmtiles://https://data.source.coop/kerner-lab/fields-of-the-world/ftw-sources.pmtiles"]
+                )
+                style.addSource(source)
+
+                let fill = MLNFillStyleLayer(identifier: "ref-ftw-fill", source: source)
+                fill.sourceLayerIdentifier = "default"
+                fill.fillColor = NSExpression(forConstantValue: UIColor.yellow.withAlphaComponent(0.15))
+                style.addLayer(fill)
+
+                let outline = MLNLineStyleLayer(identifier: "ref-ftw-outline", source: source)
+                outline.sourceLayerIdentifier = "default"
+                outline.lineColor = NSExpression(forConstantValue: UIColor.yellow.withAlphaComponent(0.6))
+                outline.lineWidth = NSExpression(forConstantValue: 1.0)
+                style.addLayer(outline)
+            }
+        }
+
+        // MARK: Tile loading feedback
+
+        /// Set to true only when new data sources are added (not on pan/zoom)
+        private var waitingForInitialRender = false
+        private var loadingStartTime: Date?
+
+        func mapViewDidFinishRenderingFrame(_ mapView: MLNMapView, fullyRendered: Bool) {
+            if fullyRendered && waitingForInitialRender {
+                waitingForInitialRender = false
+                if let start = loadingStartTime {
+                    let elapsed = Date().timeIntervalSince(start)
+                    ActivityLog.shared.success(String(format: "Loaded (%.1fs)", elapsed))
+                }
+                loadingStartTime = nil
+            }
+        }
+
+        func mapViewDidFailLoadingMap(_ mapView: MLNMapView, withError error: Error) {
+            ActivityLog.shared.error("Map loading failed: \(error.localizedDescription)")
+            waitingForInitialRender = false
+            loadingStartTime = nil
+        }
+
+        // MARK: Region tracking
+
+        func mapView(_ mapView: MLNMapView, regionDidChangeAnimated animated: Bool) {
             let center = mapView.centerCoordinate
-            let lonDelta = mapView.region.span.longitudeDelta
-            let zoom = lonDelta > 0 ? log2(360.0 * Double(mapView.frame.width) / (256.0 * lonDelta)) : 0
-            WMSTileOverlay.cancelStaleDownloads(currentZoom: Int(zoom))
+            let zoom = mapView.zoomLevel
+
             Task { @MainActor in
                 AppSettings.shared.mapCenter = center
                 AppSettings.shared.mapZoomLevel = zoom
 
-                // Auto-best-map: always pick best source for current location
                 if AppSettings.shared.autoBestMap {
                     let current = AppSettings.shared.selectedCropMap
                     if let best = CropMapSource.bestSource(at: center.latitude, longitude: center.longitude),
@@ -917,11 +1069,10 @@ struct MapContainerView: UIViewRepresentable {
                         AppSettings.shared.selectedCropMap = best
                         ActivityLog.shared.info("Auto: \(best.displayName)")
                     }
-                    return
                 }
             }
 
-            // Auto-switch when panned outside current source's coverage (only when auto-best-map is on)
+            // Auto-switch when panned outside current source's coverage
             if AppSettings.shared.autoBestMap,
                !hasAutoSwitched,
                !currentSources.isEmpty {
@@ -937,28 +1088,7 @@ struct MapContainerView: UIViewRepresentable {
             }
         }
 
-        func mapView(_ mapView: MKMapView, rendererFor overlay: any MKOverlay) -> MKOverlayRenderer {
-            tileLoadLogged = false
-            let isBaseOverlay = overlay is BlankTileOverlay || overlay is OSFieldBoundaryOverlay || overlay is LSIBOverlay || overlay is PMTileOverlay
-            let sourceID = overlaySourceMap[ObjectIdentifier(overlay as AnyObject)]
-            let alpha = CGFloat(sourceID.flatMap { currentOpacities[$0] } ?? 1.0)
-
-            if let tileOverlay = overlay as? MKTileOverlay {
-                let renderer = MKTileOverlayRenderer(overlay: tileOverlay)
-                if !isBaseOverlay { renderer.alpha = alpha }
-                return renderer
-            }
-            if let geoglamOverlay = overlay as? GEOGLAMMapOverlay {
-                let renderer = GEOGLAMOverlayRenderer(overlay: geoglamOverlay)
-                renderer.hiddenRGBs = pendingHiddenRGBs
-                renderer.alpha = alpha
-                geoglamRenderer = renderer
-                return renderer
-            }
-            return MKOverlayRenderer(overlay: overlay)
-        }
-
-        // MARK: - Long press crop identification
+        // MARK: Long press crop identification
 
         @objc func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
             guard gesture.state == .began, let mapView else { return }
@@ -974,7 +1104,7 @@ struct MapContainerView: UIViewRepresentable {
         private static func performCropIdentification(coordinate: CLLocationCoordinate2D, source: CropMapSource) async {
             guard source != .none else { return }
             let lat = coordinate.latitude, lon = coordinate.longitude
-            let locStr = String(format: "%.4f°%@, %.4f°%@",
+            let locStr = String(format: "%.4f\u{00B0}%@, %.4f\u{00B0}%@",
                                 abs(lat), lat >= 0 ? "N" : "S",
                                 abs(lon), lon >= 0 ? "E" : "W")
 
@@ -1029,7 +1159,6 @@ struct MapContainerView: UIViewRepresentable {
             } else {
                 ActivityLog.shared.success("No data at \(locStr)")
             }
-
         }
 
         // MARK: - WMS GetFeatureInfo
@@ -1143,7 +1272,6 @@ struct MapContainerView: UIViewRepresentable {
                     if v != "<null>" && !v.isEmpty && v != "0" { return v }
                 }
             }
-            // Return all non-null properties
             let pairs = properties.compactMap { key, val -> String? in
                 if val is NSNull { return nil }
                 let s = "\(val)"; if s == "<null>" { return nil }
@@ -1176,23 +1304,24 @@ struct MapContainerView: UIViewRepresentable {
         private static func identifyGEOGLAMPixel(lat: Double, lon: Double, source: CropMapSource) -> String? {
             guard let legend = CropMapLegendData.forSource(source) else { return nil }
 
-            let overlay: GEOGLAMMapOverlay?
+            let image: UIImage?
             switch source {
-            case .geoglamMajorityCrop: overlay = GEOGLAMOverlayManager.shared.majorityCropOverlay()
-            case .geoglam(let crop): overlay = GEOGLAMOverlayManager.shared.overlay(for: crop)
+            case .geoglamMajorityCrop: image = GEOGLAMOverlayManager.shared.mercatorImage(for: nil)
+            case .geoglam(let crop): image = GEOGLAMOverlayManager.shared.mercatorImage(for: crop)
             default: return nil
             }
 
-            guard let image = overlay?.image, let cgImage = image.cgImage else { return nil }
+            guard let cgImage = image?.cgImage else { return nil }
             let w = cgImage.width, h = cgImage.height
-            // Image is now Mercator-projected — use MKMapPoint for pixel lookup
-            let mapPoint = MKMapPoint(CLLocationCoordinate2D(latitude: lat, longitude: lon))
-            let world = MKMapRect.world
-            let px = Int(mapPoint.x / world.size.width * Double(w))
-            let py = Int(mapPoint.y / world.size.height * Double(h))
+
+            // Web Mercator pixel lookup (replaces MKMapPoint)
+            let xFrac = (lon + 180.0) / 360.0
+            let latRad = lat * .pi / 180.0
+            let yFrac = (1.0 - log(tan(latRad) + 1.0 / cos(latRad)) / .pi) / 2.0
+            let px = Int(xFrac * Double(w))
+            let py = Int(yFrac * Double(h))
             guard px >= 0, px < w, py >= 0, py < h else { return nil }
 
-            // Crop single pixel and read color
             let cropRect = CGRect(x: px, y: py, width: 1, height: 1)
             guard let cropped = cgImage.cropping(to: cropRect),
                   let ctx = CGContext(

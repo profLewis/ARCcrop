@@ -70,13 +70,7 @@ final class ActivityLog {
 
     /// Log current tile cache stats
     func logCacheStats() {
-        #if !os(tvOS)
-        let cache = WMSTileOverlay.tileCache
-        let usedMB = Double(cache.currentDiskUsage) / (1024 * 1024)
-        let capMB = Double(cache.diskCapacity) / (1024 * 1024)
-        let memMB = Double(cache.currentMemoryUsage) / (1024 * 1024)
-        info(String(format: "Cache: %.1fMB disk (%.0fMB cap), %.1fMB memory", usedMB, capMB, memMB))
-        #endif
+        info("Tile cache managed by MapLibre ambient storage")
     }
     var latestMessage: String? { entries.last?.message }
     var latestLevel: Entry.Level? { entries.last?.level }

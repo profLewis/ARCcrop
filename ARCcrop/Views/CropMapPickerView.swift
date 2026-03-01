@@ -32,8 +32,6 @@ struct CropMapPickerView: View {
             Button {
                 settings.activeCropMaps = []
                 settings.hiddenClasses = []
-                WMSTileOverlay.cancelAllDownloads()
-                PMTileOverlay.cancelAllDownloads()
             } label: {
                 if settings.activeCropMaps.isEmpty {
                     Label("None", systemImage: "checkmark")
@@ -139,8 +137,6 @@ struct CropMapPickerView: View {
             }
             if active {
                 settings.activeCropMaps.removeAll { $0.baseID == source.baseID }
-                WMSTileOverlay.cancelAllDownloads()
-                PMTileOverlay.cancelAllDownloads()
             } else {
                 // Snap to the currently displayed year if one is showing
                 let currentYear = settings.focusedCropMap.currentYear
@@ -157,8 +153,6 @@ struct CropMapPickerView: View {
                     settings.focusedLayerIndex = settings.activeCropMaps.count - 1
                     ActivityLog.shared.info("Added \(snapped.displayName)")
                 } else {
-                    WMSTileOverlay.cancelAllDownloads()
-                    PMTileOverlay.cancelAllDownloads()
                     settings.activeCropMaps = [snapped]
                     settings.focusedLayerIndex = 0
                     ActivityLog.shared.info("Loaded \(snapped.displayName)")

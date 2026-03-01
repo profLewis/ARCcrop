@@ -40,20 +40,49 @@ struct CropMapLegendData: Sendable {
             )
 
         case .usdaCDL:
-            // Official USDA CropScape palette
+            // Official USDA CropScape palette — all classes visible in tiles
             return CropMapLegendData(
                 title: "USDA CDL",
                 entries: [
-                    LegendEntry(color: Color(red: 255/255, green: 212/255, blue: 0/255), label: "Corn"),            // #FFD400
-                    LegendEntry(color: Color(red: 38/255, green: 115/255, blue: 0/255), label: "Soybeans"),          // #267300
-                    LegendEntry(color: Color(red: 168/255, green: 112/255, blue: 0/255), label: "Winter Wheat"),     // #A87000
-                    LegendEntry(color: Color(red: 217/255, green: 181/255, blue: 108/255), label: "Spring Wheat"),   // #D9B56C
-                    LegendEntry(color: Color(red: 0/255, green: 169/255, blue: 230/255), label: "Rice"),             // #00A9E6
-                    LegendEntry(color: Color(red: 255/255, green: 38/255, blue: 38/255), label: "Cotton"),           // #FF2626
-                    LegendEntry(color: Color(red: 255/255, green: 158/255, blue: 15/255), label: "Sorghum"),         // #FF9E0F
-                    LegendEntry(color: Color(red: 233/255, green: 255/255, blue: 190/255), label: "Grass/Pasture"),  // #E9FFBE
-                    LegendEntry(color: Color(red: 149/255, green: 206/255, blue: 147/255), label: "Forest"),         // #95CE93
-                    LegendEntry(color: Color(red: 156/255, green: 156/255, blue: 156/255), label: "Developed"),      // #9C9C9C
+                    // Major crops
+                    LegendEntry(color: Color(red: 255/255, green: 212/255, blue: 0/255), label: "Corn"),              // #FFD400
+                    LegendEntry(color: Color(red: 38/255, green: 115/255, blue: 0/255), label: "Soybeans"),            // #267300
+                    LegendEntry(color: Color(red: 168/255, green: 112/255, blue: 0/255), label: "Winter Wheat"),       // #A87000
+                    LegendEntry(color: Color(red: 217/255, green: 181/255, blue: 108/255), label: "Spring Wheat"),     // #D9B56C
+                    LegendEntry(color: Color(red: 0/255, green: 169/255, blue: 230/255), label: "Rice"),               // #00A9E6
+                    LegendEntry(color: Color(red: 255/255, green: 38/255, blue: 38/255), label: "Cotton"),             // #FF2626
+                    LegendEntry(color: Color(red: 255/255, green: 158/255, blue: 15/255), label: "Sorghum"),           // #FF9E0F
+                    LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 0/255), label: "Sunflower"),          // #FFFF00
+                    LegendEntry(color: Color(red: 112/255, green: 168/255, blue: 0/255), label: "Peanuts"),            // #70A800
+                    LegendEntry(color: Color(red: 0/255, green: 175/255, blue: 77/255), label: "Tobacco/Other"),       // #00AF4D
+                    LegendEntry(color: Color(red: 209/255, green: 255/255, blue: 0/255), label: "Canola"),             // #D1FF00
+                    // Cereals
+                    LegendEntry(color: Color(red: 226/255, green: 0/255, blue: 127/255), label: "Barley"),             // #E2007F
+                    LegendEntry(color: Color(red: 174/255, green: 1/255, blue: 126/255), label: "Rye"),                // #AE017E
+                    LegendEntry(color: Color(red: 161/255, green: 88/255, blue: 137/255), label: "Oats"),              // #A15889
+                    LegendEntry(color: Color(red: 115/255, green: 0/255, blue: 76/255), label: "Millet"),              // #73004C
+                    LegendEntry(color: Color(red: 214/255, green: 157/255, blue: 188/255), label: "Other Grains"),     // #D69DBC
+                    LegendEntry(color: Color(red: 115/255, green: 115/255, blue: 0/255), label: "Dbl Crop Wht/Soy"),   // #737300
+                    // Hay & forage
+                    LegendEntry(color: Color(red: 255/255, green: 168/255, blue: 227/255), label: "Alfalfa"),          // #FFA8E3
+                    LegendEntry(color: Color(red: 165/255, green: 245/255, blue: 141/255), label: "Other Hay"),        // #A5F58D
+                    LegendEntry(color: Color(red: 232/255, green: 190/255, blue: 255/255), label: "Clover"),           // #E8BEFF
+                    LegendEntry(color: Color(red: 178/255, green: 255/255, blue: 222/255), label: "Sod/Grass Seed"),   // #B2FFDE
+                    // Pulses & specialty
+                    LegendEntry(color: Color(red: 168/255, green: 0/255, blue: 0/255), label: "Dry Beans"),            // #A80000
+                    LegendEntry(color: Color(red: 85/255, green: 255/255, blue: 0/255), label: "Peas"),                // #55FF00
+                    LegendEntry(color: Color(red: 128/255, green: 212/255, blue: 255/255), label: "Mint/Herbs"),       // #80D4FF
+                    LegendEntry(color: Color(red: 255/255, green: 102/255, blue: 102/255), label: "Vegs & Fruits"),    // #FF6666
+                    LegendEntry(color: Color(red: 182/255, green: 112/255, blue: 92/255), label: "Pecans"),            // #B6705C
+                    // Land cover
+                    LegendEntry(color: Color(red: 233/255, green: 255/255, blue: 190/255), label: "Grass/Pasture"),    // #E9FFBE
+                    LegendEntry(color: Color(red: 191/255, green: 191/255, blue: 122/255), label: "Fallow/Idle"),      // #BFBF7A
+                    LegendEntry(color: Color(red: 149/255, green: 206/255, blue: 147/255), label: "Forest"),           // #95CE93
+                    LegendEntry(color: Color(red: 199/255, green: 215/255, blue: 158/255), label: "Shrubland"),        // #C7D79E
+                    LegendEntry(color: Color(red: 204/255, green: 191/255, blue: 163/255), label: "Barren"),           // #CCBFA3
+                    LegendEntry(color: Color(red: 77/255, green: 112/255, blue: 163/255), label: "Water"),             // #4D70A3
+                    LegendEntry(color: Color(red: 128/255, green: 179/255, blue: 179/255), label: "Wetlands"),         // #80B3B3
+                    LegendEntry(color: Color(red: 156/255, green: 156/255, blue: 156/255), label: "Developed"),        // #9C9C9C
                 ]
             )
 
@@ -174,18 +203,65 @@ struct CropMapLegendData: Sendable {
             )
 
         case .aafcCanada:
-            // Official AAFC Annual Crop Inventory palette (Earth Engine)
+            // Official AAFC Annual Crop Inventory palette — full GEE catalog
             return CropMapLegendData(
                 title: "AAFC Canada",
                 entries: [
-                    LegendEntry(color: Color(red: 0xA7/255, green: 0xB3/255, blue: 0x4D/255), label: "Wheat"),         // #A7B34D
-                    LegendEntry(color: Color(red: 0xD6/255, green: 0xFF/255, blue: 0x70/255), label: "Canola"),         // #D6FF70
-                    LegendEntry(color: Color(red: 0xDA/255, green: 0xE3/255, blue: 0x1D/255), label: "Barley"),         // #DAE31D
-                    LegendEntry(color: Color(red: 0xCC/255, green: 0x99/255, blue: 0x33/255), label: "Soybeans"),       // #CC9933
-                    LegendEntry(color: Color(red: 0xFF/255, green: 0xFF/255, blue: 0x99/255), label: "Corn"),           // #FFFF99
-                    LegendEntry(color: Color(red: 0xB7/255, green: 0x4B/255, blue: 0x15/255), label: "Lentils"),        // #B74B15
-                    LegendEntry(color: Color(red: 0x8F/255, green: 0x6C/255, blue: 0x3D/255), label: "Peas"),           // #8F6C3D
-                    LegendEntry(color: Color(red: 0xFF/255, green: 0xCC/255, blue: 0x33/255), label: "Pasture"),        // #FFCC33
+                    // Land cover
+                    LegendEntry(color: Color(red: 0x33/255, green: 0x33/255, blue: 0xFF/255), label: "Water"),              // #3333FF
+                    LegendEntry(color: Color(red: 0x99/255, green: 0x66/255, blue: 0x66/255), label: "Exposed Land"),       // #996666
+                    LegendEntry(color: Color(red: 0xCC/255, green: 0x66/255, blue: 0x99/255), label: "Urban/Developed"),    // #CC6699
+                    LegendEntry(color: Color(red: 0xE1/255, green: 0xE1/255, blue: 0xE1/255), label: "Greenhouses"),        // #E1E1E1
+                    LegendEntry(color: Color(red: 0xFF/255, green: 0xFF/255, blue: 0x00/255), label: "Shrubland"),          // #FFFF00
+                    LegendEntry(color: Color(red: 0x99/255, green: 0x33/255, blue: 0x99/255), label: "Wetland"),            // #993399
+                    LegendEntry(color: Color(red: 0x50/255, green: 0x1B/255, blue: 0x50/255), label: "Peatland"),           // #501B50
+                    LegendEntry(color: Color(red: 0xCC/255, green: 0xCC/255, blue: 0x00/255), label: "Grassland"),          // #CCCC00
+                    LegendEntry(color: Color(red: 0x66/255, green: 0x66/255, blue: 0x66/255), label: "Forest Fire/Burnt"),  // #666666
+                    // Agriculture general
+                    LegendEntry(color: Color(red: 0xCC/255, green: 0x66/255, blue: 0x00/255), label: "Agriculture"),        // #CC6600
+                    LegendEntry(color: Color(red: 0xFF/255, green: 0xCC/255, blue: 0x33/255), label: "Pasture/Forages"),    // #FFCC33
+                    LegendEntry(color: Color(red: 0x78/255, green: 0x99/255, blue: 0xF6/255), label: "Too Wet to Seed"),    // #7899F6
+                    LegendEntry(color: Color(red: 0xFF/255, green: 0x99/255, blue: 0x00/255), label: "Fallow"),             // #FF9900
+                    // Cereals
+                    LegendEntry(color: Color(red: 0xA7/255, green: 0xB3/255, blue: 0x4D/255), label: "Wheat"),             // #A7B34D
+                    LegendEntry(color: Color(red: 0x80/255, green: 0x97/255, blue: 0x69/255), label: "Winter Wheat"),       // #809769
+                    LegendEntry(color: Color(red: 0x92/255, green: 0xA5/255, blue: 0x5B/255), label: "Spring Wheat"),       // #92A55B
+                    LegendEntry(color: Color(red: 0xDA/255, green: 0xE3/255, blue: 0x1D/255), label: "Barley"),             // #DAE31D
+                    LegendEntry(color: Color(red: 0xD1/255, green: 0xD5/255, blue: 0x2B/255), label: "Oats"),              // #D1D52B
+                    LegendEntry(color: Color(red: 0xCA/255, green: 0xCD/255, blue: 0x32/255), label: "Rye"),               // #CACD32
+                    LegendEntry(color: Color(red: 0xFF/255, green: 0xFF/255, blue: 0x99/255), label: "Corn"),               // #FFFF99
+                    LegendEntry(color: Color(red: 0x99/255, green: 0x99/255, blue: 0x00/255), label: "Sorghum"),            // #999900
+                    LegendEntry(color: Color(red: 0x99/255, green: 0xCC/255, blue: 0x00/255), label: "Other Grains"),       // #99CC00
+                    // Oilseeds
+                    LegendEntry(color: Color(red: 0xD6/255, green: 0xFF/255, blue: 0x70/255), label: "Canola/Rapeseed"),    // #D6FF70
+                    LegendEntry(color: Color(red: 0x8C/255, green: 0x8C/255, blue: 0xFF/255), label: "Flaxseed"),           // #8C8CFF
+                    LegendEntry(color: Color(red: 0xD6/255, green: 0xCC/255, blue: 0x00/255), label: "Mustard"),            // #D6CC00
+                    LegendEntry(color: Color(red: 0x31/255, green: 0x54/255, blue: 0x91/255), label: "Sunflower"),          // #315491
+                    LegendEntry(color: Color(red: 0xCC/255, green: 0x99/255, blue: 0x33/255), label: "Soybeans"),           // #CC9933
+                    // Pulses
+                    LegendEntry(color: Color(red: 0x8F/255, green: 0x6C/255, blue: 0x3D/255), label: "Peas"),              // #8F6C3D
+                    LegendEntry(color: Color(red: 0xB6/255, green: 0xA4/255, blue: 0x72/255), label: "Chickpeas"),          // #B6A472
+                    LegendEntry(color: Color(red: 0x82/255, green: 0x65/255, blue: 0x4A/255), label: "Beans"),              // #82654A
+                    LegendEntry(color: Color(red: 0xA3/255, green: 0x90/255, blue: 0x69/255), label: "Fababeans"),          // #A39069
+                    LegendEntry(color: Color(red: 0xB8/255, green: 0x59/255, blue: 0x00/255), label: "Lentils"),            // #B85900
+                    // Specialty crops
+                    LegendEntry(color: Color(red: 0xB7/255, green: 0x4B/255, blue: 0x15/255), label: "Vegetables"),         // #B74B15
+                    LegendEntry(color: Color(red: 0xFF/255, green: 0xCC/255, blue: 0xCC/255), label: "Potatoes"),           // #FFCCCC
+                    LegendEntry(color: Color(red: 0x6F/255, green: 0x55/255, blue: 0xCA/255), label: "Sugarbeets"),         // #6F55CA
+                    LegendEntry(color: Color(red: 0xDC/255, green: 0x54/255, blue: 0x24/255), label: "Fruits"),             // #DC5424
+                    LegendEntry(color: Color(red: 0xD2/255, green: 0x00/255, blue: 0x00/255), label: "Blueberry"),          // #D20000
+                    LegendEntry(color: Color(red: 0xCC/255, green: 0x00/255, blue: 0x00/255), label: "Cranberry"),          // #CC0000
+                    LegendEntry(color: Color(red: 0xFF/255, green: 0x66/255, blue: 0x66/255), label: "Orchards"),           // #FF6666
+                    LegendEntry(color: Color(red: 0x74/255, green: 0x42/255, blue: 0xBD/255), label: "Vineyards"),          // #7442BD
+                    LegendEntry(color: Color(red: 0x8E/255, green: 0x76/255, blue: 0x72/255), label: "Hemp"),               // #8E7672
+                    LegendEntry(color: Color(red: 0xB5/255, green: 0xFB/255, blue: 0x05/255), label: "Sod"),               // #B5FB05
+                    LegendEntry(color: Color(red: 0xCC/255, green: 0xFF/255, blue: 0x05/255), label: "Herbs"),              // #CCFF05
+                    LegendEntry(color: Color(red: 0x74/255, green: 0x9A/255, blue: 0x66/255), label: "Other Crops"),        // #749A66
+                    // Forest
+                    LegendEntry(color: Color(red: 0x00/255, green: 0x99/255, blue: 0x00/255), label: "Forest"),             // #009900
+                    LegendEntry(color: Color(red: 0x00/255, green: 0x66/255, blue: 0x00/255), label: "Coniferous"),         // #006600
+                    LegendEntry(color: Color(red: 0x00/255, green: 0xCC/255, blue: 0x00/255), label: "Broadleaf"),          // #00CC00
+                    LegendEntry(color: Color(red: 0xCC/255, green: 0x99/255, blue: 0x00/255), label: "Mixedwood"),          // #CC9900
                 ]
             )
 

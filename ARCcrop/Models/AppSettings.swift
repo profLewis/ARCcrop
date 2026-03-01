@@ -118,9 +118,6 @@ final class AppSettings {
     var cacheSizeMB: Int = 2048 {
         didSet {
             UserDefaults.standard.set(cacheSizeMB, forKey: "cacheSizeMB")
-            #if !os(tvOS)
-            WMSTileOverlay.applyDiskCapacity(cacheSizeMB)
-            #endif
         }
     }
 
@@ -147,14 +144,8 @@ final class AppSettings {
     var apiKeySetupProvider: APIKeyProvider? = nil
     var pendingCropMapSource: CropMapSource? = nil
 
-    /// Effective MKMapType combining base style and border overlay
-    var effectiveMapType: UInt {
-        switch mapStyle {
-        case .standard: showBorders ? 0 : 0          // standard always has borders
-        case .satellite: showBorders ? 2 : 1          // hybrid when borders on
-        case .blank: showBorders ? 4 : 4              // mutedStandard for both (dark tile covers it)
-        }
-    }
+    /// Legacy — no longer used with MapLibre (kept for compatibility)
+    var effectiveMapType: UInt { 0 }
 
     private init() {
         // Restore active crop maps (prefer new array format, fall back to legacy single)
@@ -204,8 +195,11 @@ enum AppTab: Hashable {
 }
 
 enum MapStyle: String, CaseIterable, Identifiable, Sendable {
-    case standard = "Standard"
     case satellite = "Satellite"
+    case hybrid = "Hybrid"
+    case standard = "Standard"
+    case terrain = "Terrain"
+    case dark = "Dark"
     case blank = "No Base Map"
 
     var id: String { rawValue }
