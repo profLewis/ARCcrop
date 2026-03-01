@@ -946,6 +946,7 @@ struct MapContainerView: UIViewRepresentable {
                         filterColors: filterColors)
                 } else {
                     // Direct URL — best performance, MapLibre caches natively
+                    // (includes PMTiles proxy URLs which use http:// with fake host)
                     tileURL = params.tileURLTemplate
                 }
 

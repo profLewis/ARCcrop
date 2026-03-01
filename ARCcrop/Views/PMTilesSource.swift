@@ -4,128 +4,62 @@ import Compression
 
 // MARK: - PMTiles URL Protocol for MapLibre
 
-/// Intercepts `pmtiles://` URLs and serves raster tiles from a remote PMTiles v3 archive
-/// via HTTP range requests. Tile URL format: `pmtiles://host/path#z/x/y`
+/// Intercepts `http://arccrop-pmtiles.internal/{z}/{x}/{y}/{filename}` URLs
+/// and serves raster tiles from a bundled or remote PMTiles v3 archive.
 final class PMTilesURLProtocol: URLProtocol {
-    private var dataTask: URLSessionDataTask?
+    static let proxyHost = "arccrop-pmtiles.internal"
 
-    /// Shared session with aggressive caching (tiles are immutable)
-    private static let session: URLSession = {
-        let config = URLSessionConfiguration.default
-        let cache = URLCache(memoryCapacity: 30_000_000, diskCapacity: 200_000_000)
-        config.urlCache = cache
-        config.requestCachePolicy = .returnCacheDataElseLoad
-        return URLSession(configuration: config)
-    }()
-
-    // MARK: - Loaded archive metadata (cached per URL)
-    private nonisolated(unsafe) static var archiveCache: [String: PMTilesArchive] = [:]
+    // MARK: - Loaded archives (cached per filename)
+    private nonisolated(unsafe) static var archiveCache: [String: PMTilesLocalArchive] = [:]
     private static let archiveLock = NSLock()
 
     override class func canInit(with request: URLRequest) -> Bool {
-        request.url?.scheme == "pmtiles"
+        request.url?.host == proxyHost
     }
 
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        guard let url = request.url else {
-            fail("Invalid pmtiles URL")
+        guard let url = request.url else { fail("No URL"); return }
+
+        // URL format: http://arccrop-pmtiles.internal/{z}/{x}/{y}/{filename}
+        let parts = url.pathComponents.filter { $0 != "/" }
+        guard parts.count >= 4,
+              let z = Int(parts[0]), let x = Int(parts[1]), let y = Int(parts[2]) else {
+            fail("Invalid PMTiles URL: \(url.path)")
+            return
+        }
+        let filename = parts[3]
+
+        // Load archive from bundle (cached after first load)
+        guard let archive = loadArchive(named: filename) else {
+            fail("PMTiles archive not found: \(filename)")
             return
         }
 
-        // URL format: pmtiles://host/path/to/file.pmtiles/{z}/{x}/{y}
-        // Extract z/x/y from the last 3 path components
-        let pathParts = url.pathComponents.filter { $0 != "/" }
-        guard pathParts.count >= 4,
-              let y = Int(pathParts[pathParts.count - 1]),
-              let x = Int(pathParts[pathParts.count - 2]),
-              let z = Int(pathParts[pathParts.count - 3]) else {
-            fail("Invalid pmtiles URL: need /file.pmtiles/{z}/{x}/{y}")
-            return
-        }
+        let tileID = PMTilesLocalArchive.zxyToTileID(z: z, x: x, y: y)
 
-        // Build HTTPS URL to the .pmtiles file (without z/x/y suffix)
-        let fileParts = pathParts.dropLast(3)
-        var comps = URLComponents()
-        comps.scheme = "https"
-        comps.host = url.host
-        comps.path = "/" + fileParts.joined(separator: "/")
-        guard let httpsURL = comps.url else {
-            fail("Cannot build HTTPS URL")
-            return
-        }
-
-        let archiveKey = httpsURL.absoluteString
-
-        // Load archive header if needed
-        Self.archiveLock.lock()
-        let cached = Self.archiveCache[archiveKey]
-        Self.archiveLock.unlock()
-
-        if let archive = cached {
-            serveTile(z: z, x: x, y: y, archive: archive)
-        } else {
-            // Fetch header (first 16KB)
-            fetchHeader(httpsURL: httpsURL, key: archiveKey) { [weak self] archive in
-                guard let self, let archive else {
-                    self?.fail("Failed to load PMTiles header")
-                    return
-                }
-                self.serveTile(z: z, x: x, y: y, archive: archive)
-            }
-        }
-    }
-
-    override func stopLoading() {
-        dataTask?.cancel()
-    }
-
-    // MARK: - Serve a tile
-
-    private func serveTile(z: Int, x: Int, y: Int, archive: PMTilesArchive) {
-        let tileID = PMTilesArchive.zxyToTileID(z: z, x: x, y: y)
-
-        guard let entry = archive.findTile(id: tileID) else {
-            // No tile at this location — return empty transparent PNG
+        guard let tileData = archive.readTile(id: tileID) else {
             returnEmpty()
             return
         }
 
-        let offset = archive.header.dataOffset + entry.offset
-        let length = entry.length
-
-        Self.fetchRange(from: archive.url, offset: offset, length: length) { [weak self] data in
-            guard let self, let data else {
-                self?.returnEmpty()
-                return
-            }
-
-            // Decompress if needed
-            let tileData: Data
-            if archive.header.tileCompression == 2 { // gzip
-                tileData = Self.gunzip(data) ?? data
-            } else {
-                tileData = data
-            }
-
-            let headers: [String: String] = [
-                "Content-Type": "image/png",
-                "Content-Length": "\(tileData.count)",
-                "Cache-Control": "max-age=31536000" // 1 year (immutable tiles)
-            ]
-            if let url = self.request.url,
-               let resp = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: headers) {
-                self.client?.urlProtocol(self, didReceive: resp, cacheStoragePolicy: .allowed)
-            }
-            self.client?.urlProtocol(self, didLoad: tileData)
-            self.client?.urlProtocolDidFinishLoading(self)
+        let headers: [String: String] = [
+            "Content-Type": "image/png",
+            "Content-Length": "\(tileData.count)",
+            "Cache-Control": "max-age=31536000"
+        ]
+        if let resp = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: headers) {
+            client?.urlProtocol(self, didReceive: resp, cacheStoragePolicy: .allowed)
         }
+        client?.urlProtocol(self, didLoad: tileData)
+        client?.urlProtocolDidFinishLoading(self)
     }
 
+    override func stopLoading() {}
+
     private func returnEmpty() {
-        // 1x1 transparent PNG
-        let empty = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAABJREFUeJxjYAAAAAMAAUbRyNIAAAAASUVORK5CYII=")!
+        let empty = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAABJRUFUeJxjYAAAAAMAAUbRyNIAAAAASUVORK5CYII=")!
         let headers: [String: String] = ["Content-Type": "image/png", "Content-Length": "\(empty.count)"]
         if let url = request.url,
            let resp = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: headers) {
@@ -141,158 +75,94 @@ final class PMTilesURLProtocol: URLProtocol {
             userInfo: [NSLocalizedDescriptionKey: msg]))
     }
 
-    // MARK: - Header loading
-
-    private func fetchHeader(httpsURL: URL, key: String, completion: @escaping (PMTilesArchive?) -> Void) {
-        Self.fetchRange(from: httpsURL, offset: 0, length: 16384) { [weak self] data in
-            guard let data, data.count >= 127 else {
-                completion(nil)
-                return
-            }
-
-            let magic = data[0..<7]
-            guard String(data: magic, encoding: .ascii) == "PMTiles" else {
-                completion(nil)
-                return
-            }
-
-            let h = PMTilesV3Header(
-                version: data[7],
-                rootDirOffset: Self.readU64(data, at: 8),
-                rootDirLength: Self.readU64(data, at: 16),
-                metadataOffset: Self.readU64(data, at: 24),
-                metadataLength: Self.readU64(data, at: 32),
-                leafDirOffset: Self.readU64(data, at: 40),
-                leafDirLength: Self.readU64(data, at: 48),
-                dataOffset: Self.readU64(data, at: 56),
-                dataLength: Self.readU64(data, at: 64),
-                numAddressedTiles: Self.readU64(data, at: 72),
-                numTileEntries: Self.readU64(data, at: 80),
-                numTileContents: Self.readU64(data, at: 88),
-                clustered: data[96] == 1,
-                internalCompression: data[97],
-                tileCompression: data[98],
-                tileType: data[99],
-                minZoom: data[100],
-                maxZoom: data[101]
-            )
-
-            // Parse root directory
-            let rootEnd = Int(h.rootDirOffset + h.rootDirLength)
-            let rootDir: Data?
-            if rootEnd <= data.count {
-                let raw = Data(data[Int(h.rootDirOffset)..<rootEnd])
-                rootDir = h.internalCompression == 2 ? Self.gunzip(raw) : raw
-            } else {
-                // Need separate fetch
-                let sem = DispatchSemaphore(value: 0)
-                var fetched: Data?
-                Self.fetchRange(from: httpsURL, offset: h.rootDirOffset, length: h.rootDirLength) { d in
-                    fetched = d
-                    sem.signal()
-                }
-                sem.wait()
-                if let f = fetched {
-                    rootDir = h.internalCompression == 2 ? Self.gunzip(f) : f
-                } else {
-                    rootDir = nil
-                }
-            }
-
-            guard let rootDir else { completion(nil); return }
-
-            let archive = PMTilesArchive(url: httpsURL, header: h, rootDirectory: rootDir)
-
-            Self.archiveLock.lock()
-            Self.archiveCache[key] = archive
+    private func loadArchive(named filename: String) -> PMTilesLocalArchive? {
+        Self.archiveLock.lock()
+        if let cached = Self.archiveCache[filename] {
             Self.archiveLock.unlock()
-
-            completion(archive)
+            return cached
         }
-    }
+        Self.archiveLock.unlock()
 
-    // MARK: - HTTP range requests
-
-    static func fetchRange(from url: URL, offset: UInt64, length: UInt64, completion: @escaping (Data?) -> Void) {
-        var req = URLRequest(url: url)
-        req.setValue("bytes=\(offset)-\(offset + length - 1)", forHTTPHeaderField: "Range")
-        req.timeoutInterval = 15
-        req.cachePolicy = .returnCacheDataElseLoad
-
-        session.dataTask(with: req) { data, response, _ in
-            if let data, let http = response as? HTTPURLResponse,
-               http.statusCode == 206 || http.statusCode == 200 {
-                completion(data)
-            } else {
-                completion(nil)
-            }
-        }.resume()
-    }
-
-    // MARK: - Helpers
-
-    private static func readU64(_ data: Data, at offset: Int) -> UInt64 {
-        data.withUnsafeBytes { $0.load(fromByteOffset: offset, as: UInt64.self).littleEndian }
-    }
-
-    static func gunzip(_ data: Data) -> Data? {
-        guard data.count > 10, data[0] == 0x1f, data[1] == 0x8b else {
-            return inflate(data)
+        // Find file in app bundle
+        let name = (filename as NSString).deletingPathExtension
+        guard let fileURL = Bundle.main.url(forResource: name, withExtension: "pmtiles"),
+              let data = try? Data(contentsOf: fileURL, options: .mappedIfSafe) else {
+            return nil
         }
-        var offset = 10
-        let flags = data[3]
-        if flags & 0x04 != 0 {
-            guard offset + 2 <= data.count else { return nil }
-            let xlen = Int(data[offset]) | (Int(data[offset + 1]) << 8)
-            offset += 2 + xlen
-        }
-        if flags & 0x08 != 0 { while offset < data.count && data[offset] != 0 { offset += 1 }; offset += 1 }
-        if flags & 0x10 != 0 { while offset < data.count && data[offset] != 0 { offset += 1 }; offset += 1 }
-        if flags & 0x02 != 0 { offset += 2 }
-        guard offset < data.count else { return nil }
-        return inflate(Data(data[offset...]))
-    }
 
-    private static func inflate(_ data: Data) -> Data? {
-        let bufSize = 1024 * 1024
-        var output = Data(count: bufSize)
-        let result = data.withUnsafeBytes { src in
-            output.withUnsafeMutableBytes { dst in
-                guard let s = src.baseAddress, let d = dst.baseAddress else { return 0 }
-                return compression_decode_buffer(
-                    d.assumingMemoryBound(to: UInt8.self), bufSize,
-                    s.assumingMemoryBound(to: UInt8.self), data.count,
-                    nil, COMPRESSION_ZLIB)
-            }
-        }
-        guard result > 0 else { return nil }
-        output.count = result
-        return output
+        guard let archive = PMTilesLocalArchive(data: data) else { return nil }
+
+        Self.archiveLock.lock()
+        Self.archiveCache[filename] = archive
+        Self.archiveLock.unlock()
+        return archive
     }
 }
 
-// MARK: - PMTiles v3 archive
+// MARK: - Local PMTiles v3 archive (memory-mapped from bundle)
 
-final class PMTilesArchive {
-    let url: URL
+final class PMTilesLocalArchive {
+    let data: Data
     let header: PMTilesV3Header
     let rootDirectory: Data
-    private var leafCache: [UInt64: Data] = [:]
-    private let leafLock = NSLock()
 
-    init(url: URL, header: PMTilesV3Header, rootDirectory: Data) {
-        self.url = url
-        self.header = header
-        self.rootDirectory = rootDirectory
+    init?(data: Data) {
+        guard data.count >= 127,
+              String(data: data[0..<7], encoding: .ascii) == "PMTiles" else { return nil }
+        self.data = data
+
+        self.header = PMTilesV3Header(
+            version: data[7],
+            rootDirOffset: Self.readU64(data, at: 8),
+            rootDirLength: Self.readU64(data, at: 16),
+            metadataOffset: Self.readU64(data, at: 24),
+            metadataLength: Self.readU64(data, at: 32),
+            leafDirOffset: Self.readU64(data, at: 40),
+            leafDirLength: Self.readU64(data, at: 48),
+            dataOffset: Self.readU64(data, at: 56),
+            dataLength: Self.readU64(data, at: 64),
+            numAddressedTiles: Self.readU64(data, at: 72),
+            numTileEntries: Self.readU64(data, at: 80),
+            numTileContents: Self.readU64(data, at: 88),
+            clustered: data[96] == 1,
+            internalCompression: data[97],
+            tileCompression: data[98],
+            tileType: data[99],
+            minZoom: data[100],
+            maxZoom: data[101]
+        )
+
+        let rootStart = Int(header.rootDirOffset)
+        let rootEnd = rootStart + Int(header.rootDirLength)
+        guard rootEnd <= data.count else { return nil }
+        let raw = Data(data[rootStart..<rootEnd])
+        if header.internalCompression == 2 {
+            guard let decompressed = Self.gunzip(raw) else { return nil }
+            self.rootDirectory = decompressed
+        } else {
+            self.rootDirectory = raw
+        }
     }
 
-    func findTile(id: UInt64, directory: Data? = nil, depth: Int = 0) -> (offset: UInt64, length: UInt64)? {
+    func readTile(id: UInt64) -> Data? {
+        guard let entry = findTile(id: id) else { return nil }
+        let offset = Int(header.dataOffset + entry.offset)
+        let length = Int(entry.length)
+        guard offset + length <= data.count else { return nil }
+
+        let raw = Data(data[offset..<(offset + length)])
+        if header.tileCompression == 2 {
+            return Self.gunzip(raw) ?? raw
+        }
+        return raw
+    }
+
+    private func findTile(id: UInt64, directory: Data? = nil, depth: Int = 0) -> (offset: UInt64, length: UInt64)? {
         guard depth < 4 else { return nil }
         let dir = directory ?? rootDirectory
         let entries = Self.parseDirectory(dir)
         guard !entries.isEmpty else { return nil }
 
-        // Binary search
         var lo = 0, hi = entries.count - 1, matchIdx = -1
         while lo <= hi {
             let mid = (lo + hi) / 2
@@ -304,35 +174,16 @@ final class PMTilesArchive {
 
         if e.runLength == 0 {
             // Leaf directory
-            let leafOffset = header.leafDirOffset + e.offset
-            guard let leafDir = fetchLeafSync(offset: leafOffset, length: e.length) else { return nil }
+            let leafStart = Int(header.leafDirOffset + e.offset)
+            let leafEnd = leafStart + Int(e.length)
+            guard leafEnd <= data.count else { return nil }
+            let raw = Data(data[leafStart..<leafEnd])
+            let leafDir = header.internalCompression == 2 ? (Self.gunzip(raw) ?? raw) : raw
             return findTile(id: id, directory: leafDir, depth: depth + 1)
         }
 
         guard id < e.tileID + UInt64(e.runLength) else { return nil }
         return (offset: e.offset, length: e.length)
-    }
-
-    private func fetchLeafSync(offset: UInt64, length: UInt64) -> Data? {
-        leafLock.lock()
-        if let cached = leafCache[offset] { leafLock.unlock(); return cached }
-        leafLock.unlock()
-
-        let sem = DispatchSemaphore(value: 0)
-        var result: Data?
-        PMTilesURLProtocol.fetchRange(from: url, offset: offset, length: length) { data in
-            result = data
-            sem.signal()
-        }
-        sem.wait()
-
-        guard let raw = result else { return nil }
-        let dir = header.internalCompression == 2 ? (PMTilesURLProtocol.gunzip(raw) ?? raw) : raw
-
-        leafLock.lock()
-        leafCache[offset] = dir
-        leafLock.unlock()
-        return dir
     }
 
     // MARK: - ZXY → Hilbert tile ID
@@ -409,6 +260,47 @@ final class PMTilesArchive {
             if b & 0x80 == 0 { break }; shift += 7
         }
         return (result, i - offset)
+    }
+
+    // MARK: - Helpers
+
+    private static func readU64(_ data: Data, at offset: Int) -> UInt64 {
+        data.withUnsafeBytes { $0.load(fromByteOffset: offset, as: UInt64.self).littleEndian }
+    }
+
+    static func gunzip(_ data: Data) -> Data? {
+        guard data.count > 10, data[0] == 0x1f, data[1] == 0x8b else {
+            return inflate(data)
+        }
+        var offset = 10
+        let flags = data[3]
+        if flags & 0x04 != 0 {
+            guard offset + 2 <= data.count else { return nil }
+            let xlen = Int(data[offset]) | (Int(data[offset + 1]) << 8)
+            offset += 2 + xlen
+        }
+        if flags & 0x08 != 0 { while offset < data.count && data[offset] != 0 { offset += 1 }; offset += 1 }
+        if flags & 0x10 != 0 { while offset < data.count && data[offset] != 0 { offset += 1 }; offset += 1 }
+        if flags & 0x02 != 0 { offset += 2 }
+        guard offset < data.count else { return nil }
+        return inflate(Data(data[offset...]))
+    }
+
+    private static func inflate(_ data: Data) -> Data? {
+        let bufSize = 1024 * 1024
+        var output = Data(count: bufSize)
+        let result = data.withUnsafeBytes { src in
+            output.withUnsafeMutableBytes { dst in
+                guard let s = src.baseAddress, let d = dst.baseAddress else { return 0 }
+                return compression_decode_buffer(
+                    d.assumingMemoryBound(to: UInt8.self), bufSize,
+                    s.assumingMemoryBound(to: UInt8.self), data.count,
+                    nil, COMPRESSION_ZLIB)
+            }
+        }
+        guard result > 0 else { return nil }
+        output.count = result
+        return output
     }
 }
 

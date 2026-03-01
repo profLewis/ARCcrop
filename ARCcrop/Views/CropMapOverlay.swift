@@ -31,7 +31,7 @@ final class WMSTileURLProtocol: URLProtocol, @unchecked Sendable {
     private var dataTask: URLSessionDataTask?
 
     /// Shared session for fetching original tiles (does NOT include this protocol class
-    /// to avoid infinite recursion — uses a plain default configuration).
+    /// to avoid infinite recursion).
     private static let session: URLSession = {
         let config = URLSessionConfiguration.default
         config.urlCache = URLCache(memoryCapacity: 128 * 1024 * 1024, diskCapacity: 1024 * 1024 * 1024)
@@ -368,10 +368,9 @@ enum CropMapOverlayFactory {
     static func sourceParams(for source: CropMapSource) -> WMSSourceParams? {
         switch source {
         case .usdaCDL(year: let year):
-            let pmtilesBase = "pmtiles://raw.githubusercontent.com/profLewis/ARCcrop/main/tiles"
             return WMSSourceParams(
                 identifier: source.id,
-                tileURLTemplate: "\(pmtilesBase)/usda_cdl_\(year).pmtiles/{z}/{x}/{y}",
+                tileURLTemplate: "http://\(PMTilesURLProtocol.proxyHost)/{z}/{x}/{y}/usda_cdl_\(year).pmtiles",
                 minZoom: 0, maxZoom: 8, needs4326: false)
 
         case .jrcEUCropMap(year: let year):
@@ -614,9 +613,8 @@ enum CropMapOverlayFactory {
             return WMSSourceParams(
                 identifier: source.id,
                 tileURLTemplate: wmsTemplate(
-                    baseURL: "http://azure.solved.eco.br:8080/geoserver/solved/wms",
-                    layers: "mapbiomas",
-                    styles: "solved:mapbiomas_legend"),
+                    baseURL: "http://azure.solved.eco.br:8080/geoserver/ows",
+                    layers: "solved:mapbiomas"),
                 minZoom: 0, maxZoom: 14, needs4326: false)
 
         default:
