@@ -46,8 +46,48 @@ struct MapView: View {
                 )
                 .ignoresSafeArea(edges: .bottom)
 
-                // Top-right: year stepper + map controls
+                // Top bar: pinned controls across the top of the map
+                VStack(spacing: 0) {
+                    HStack(spacing: 6) {
+                        // Search button
+                        Button { isSearching = true } label: {
+                            Image(systemName: "magnifyingglass")
+                                .font(.callout.bold())
+                                .frame(width: 36, height: 36)
+                                .background(.ultraThinMaterial)
+                                .clipShape(Circle())
+                        }
+
+                        // Crop map picker (always visible)
+                        CropMapPickerView()
+                            .frame(maxWidth: .infinity)
+
+                        // Log button
+                        Button { showingLog = true } label: {
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .font(.callout.bold())
+                                .frame(width: 36, height: 36)
+                                .background(.ultraThinMaterial)
+                                .clipShape(Circle())
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.top, 4)
+
+                    // Status banner (just below the pinned bar)
+                    if settings.showStatusBanner, let msg = log.latestMessage {
+                        StatusBannerView(message: log.progressText ?? msg, level: log.latestLevel ?? .info, isActive: log.isActive, tileProgress: log.tileProgress)
+                            .padding(.top, 4)
+                            .allowsHitTesting(false)
+                    }
+
+                    Spacer()
+                }
+
+                // Right side: year stepper + map controls + opacity
                 VStack(alignment: .trailing, spacing: 6) {
+                    Spacer().frame(height: 48)
+
                     if let yearRange = effectiveYearRange {
                         YearStepperView(
                             year: settings.focusedCropMap.currentYear,
@@ -109,37 +149,8 @@ struct MapView: View {
                             .padding(8)
                     }
                 }
-
-                // Top-left: status banner
-                if settings.showStatusBanner, let msg = log.latestMessage {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            StatusBannerView(message: log.progressText ?? msg, level: log.latestLevel ?? .info, isActive: log.isActive, tileProgress: log.tileProgress)
-                            Spacer()
-                        }
-                        .padding(.top, 4)
-                        Spacer()
-                    }
-                    .allowsHitTesting(false)
-                }
             }
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    CropMapPickerView()
-                }
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { isSearching = true } label: {
-                        Image(systemName: "magnifyingglass")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showingLog = true } label: {
-                        Image(systemName: "doc.text.magnifyingglass")
-                    }
-                }
-            }
-            .toolbarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $isSearching) {
                 PlaceSearchSheet { coordinate in
                     isSearching = false

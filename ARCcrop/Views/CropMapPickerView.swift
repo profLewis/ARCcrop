@@ -123,6 +123,10 @@ struct CropMapPickerView: View {
             }
             .font(.callout.bold())
             .lineLimit(1)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial)
+            .clipShape(Capsule())
         }
     }
 
