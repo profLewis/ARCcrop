@@ -182,55 +182,73 @@ struct MultiLegendView: View {
         }
     }
 
+    /// Drag gesture for moving the panel (applied only to header, not scrollable content)
+    private var panelDrag: some Gesture {
+        DragGesture()
+            .onChanged { panelOffset = $0.translation }
+            .onEnded { value in
+                panelSaved = CGSize(
+                    width: panelSaved.width + value.translation.width,
+                    height: panelSaved.height + value.translation.height
+                )
+                panelOffset = .zero
+            }
+    }
+
     var body: some View {
         if !visibleLegends.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                // Single layer: show name + close button as header
-                if visibleLegends.count == 1, let item = visibleLegends.first {
-                    HStack {
-                        Text(item.source.sourceName)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        Button {
-                            settings.activeCropMaps.removeAll()
-                            settings.hiddenClasses = []
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 14))
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.top, 6)
-                    .padding(.bottom, 2)
-                }
-
-                // Tab bar — tap to focus, drag to reorder layers
-                if visibleLegends.count > 1 {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 2) {
-                            ForEach(visibleLegends, id: \.source.id) { item in
-                                legendTab(item.source)
-                                    .opacity(draggingID == item.source.id ? 0.4 : 1.0)
-                                    .onDrag {
-                                        draggingID = item.source.id
-                                        return NSItemProvider(object: item.source.id as NSString)
-                                    }
-                                    .onDrop(of: [.text], delegate: TabDropDelegate(
-                                        targetID: item.source.id,
-                                        settings: settings,
-                                        draggingID: $draggingID
-                                    ))
+                // Draggable header area (drag here to move panel)
+                Group {
+                    // Single layer: show name + close button as header
+                    if visibleLegends.count == 1, let item = visibleLegends.first {
+                        HStack {
+                            Text(item.source.sourceName)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Button {
+                                settings.activeCropMaps.removeAll()
+                                settings.hiddenClasses = []
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.secondary)
                             }
+                            .buttonStyle(.plain)
                         }
-                        .padding(.horizontal, 4)
-                        .padding(.top, 4)
+                        .padding(.horizontal, 8)
+                        .padding(.top, 6)
+                        .padding(.bottom, 2)
+                    }
+
+                    // Tab bar — tap to focus, drag to reorder layers
+                    if visibleLegends.count > 1 {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 2) {
+                                ForEach(visibleLegends, id: \.source.id) { item in
+                                    legendTab(item.source)
+                                        .opacity(draggingID == item.source.id ? 0.4 : 1.0)
+                                        .onDrag {
+                                            draggingID = item.source.id
+                                            return NSItemProvider(object: item.source.id as NSString)
+                                        }
+                                        .onDrop(of: [.text], delegate: TabDropDelegate(
+                                            targetID: item.source.id,
+                                            settings: settings,
+                                            draggingID: $draggingID
+                                        ))
+                                }
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.top, 4)
+                        }
                     }
                 }
+                .contentShape(Rectangle())
+                .gesture(panelDrag)
 
-                // Show the focused legend (or the first/only one)
+                // Scrollable legend content (no panel drag here)
                 let focusedID = settings.focusedCropMap.id
                 if let item = visibleLegends.first(where: { $0.source.id == focusedID }) ?? visibleLegends.first {
                     let yr = item.source.availableYears != nil ? item.source.currentYear : nil
@@ -239,17 +257,6 @@ struct MultiLegendView: View {
             }
             .offset(x: panelOffset.width + panelSaved.width,
                     y: panelOffset.height + panelSaved.height)
-            .simultaneousGesture(
-                DragGesture()
-                    .onChanged { panelOffset = $0.translation }
-                    .onEnded { value in
-                        panelSaved = CGSize(
-                            width: panelSaved.width + value.translation.width,
-                            height: panelSaved.height + value.translation.height
-                        )
-                        panelOffset = .zero
-                    }
-            )
         }
     }
 
