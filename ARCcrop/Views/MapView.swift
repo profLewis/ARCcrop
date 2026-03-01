@@ -802,8 +802,58 @@ struct MapContainerView: UIViewRepresentable {
             return
         }
 
-        // Data sources or filter changed — rebuild data layers
-        if sourcesChanged || filterChanged {
+        // Filter changed only (class toggle) — update existing layers in-place
+        if filterChanged && !sourcesChanged {
+            coord.currentHidden = hiddenClasses
+
+            // Update GEOGLAM image sources in-place
+            for source in activeCropMaps {
+                let sourceId = "src-\(source.id)"
+                switch source {
+                case .geoglamMajorityCrop, .geoglam:
+                    if let imgSource = style.source(withIdentifier: sourceId) as? MLNImageSource {
+                        var image: UIImage?
+                        switch source {
+                        case .geoglamMajorityCrop:
+                            image = GEOGLAMOverlayManager.shared.mercatorImage(for: nil)
+                        case .geoglam(let crop):
+                            image = GEOGLAMOverlayManager.shared.mercatorImage(for: crop)
+                        default: break
+                        }
+                        if var img = image {
+                            if !hiddenClasses.isEmpty {
+                                let entries = CropMapLegendData.forSource(source)?.entries ?? []
+                                let filterColors = LegendColorExtractor.rgbValues(for: entries, matching: hiddenClasses)
+                                if !filterColors.isEmpty {
+                                    img = GEOGLAMOverlayManager.filterImage(img, hiding: filterColors) ?? img
+                                }
+                            }
+                            imgSource.image = img
+                        }
+                    }
+                default:
+                    // WMS sources — need to rebuild with new filter URL
+                    break
+                }
+            }
+
+            // For WMS sources, check if any need filter update
+            let wmsNeedsUpdate = activeCropMaps.contains { source in
+                switch source {
+                case .geoglamMajorityCrop, .geoglam, .none: return false
+                default: return true
+                }
+            }
+            if wmsNeedsUpdate {
+                // Remove and re-add WMS layers with updated filter
+                coord.removeAllDataLayers(style: style)
+                ActivityLog.shared.resetTileProgress()
+                coord.addDataLayers(style: style)
+            }
+        }
+
+        // Data sources changed — rebuild all data layers
+        if sourcesChanged {
             let oldIDs = Set(coord.currentSources.map(\.id))
             let newIDs = Set(activeCropMaps.map(\.id))
             let addedIDs = newIDs.subtracting(oldIDs)
