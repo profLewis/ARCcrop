@@ -391,8 +391,10 @@ enum CropMapOverlayFactory {
         case .usdaCDL(year: let year):
             return WMSSourceParams(
                 identifier: source.id,
-                tileURLTemplate: "http://\(PMTilesURLProtocol.proxyHost)/{z}/{x}/{y}/usda_cdl_\(year).pmtiles?v=7",
-                minZoom: 0, maxZoom: 8, needs4326: false)
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://nassgeodata.gmu.edu/CropScapeService/wms_cdlall.cgi",
+                    layers: "cdl_\(year)"),
+                minZoom: 0, maxZoom: 17, needs4326: true)
 
         case .jrcEUCropMap(year: let year):
             return WMSSourceParams(
