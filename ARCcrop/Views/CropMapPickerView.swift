@@ -42,28 +42,42 @@ struct CropMapPickerView: View {
 
             // MARK: - Global
             Section("Global") {
-                Menu {
-                    sourceButton(.geoglamMajorityCrop, label: "Majority Crop", icon: "globe")
-                    ForEach(GEOGLAMCrop.allCases) { crop in
-                        sourceButton(.geoglam(crop), label: "\(crop.rawValue) %", icon: "chart.pie.fill")
+                // GEOGLAM: tap to load/unload majority crop
+                groupButton(
+                    defaultSource: .geoglamMajorityCrop,
+                    label: "GEOGLAM (~5.6km)",
+                    icon: "globe",
+                    isGroupActive: anyGEOGLAMActive
+                )
+                // GEOGLAM variants sub-menu
+                if anyGEOGLAMActive {
+                    Menu("  GEOGLAM Crop…") {
+                        variantButton(.geoglamMajorityCrop, label: "Majority Crop")
+                        ForEach(GEOGLAMCrop.allCases) { crop in
+                            variantButton(.geoglam(crop), label: crop.rawValue)
+                        }
                     }
-                } label: {
-                    Label("GEOGLAM (~5.6km)", systemImage: anyGEOGLAMActive ? "globe.badge.chevron.backward" : "globe")
                 }
-
-                Menu {
-                    sourceButton(.worldCereal, label: "All Temporary Crops", icon: "globe.europe.africa.fill")
-                    sourceButton(.worldCerealMaize, label: "Maize", icon: "globe.europe.africa.fill")
-                    sourceButton(.worldCerealWinterCereals, label: "Winter Cereals", icon: "globe.europe.africa.fill")
-                    sourceButton(.worldCerealSpringCereals, label: "Spring Cereals", icon: "globe.europe.africa.fill")
-                } label: {
-                    Label("WorldCereal (10m)", systemImage: anyWorldCerealActive ? "globe.europe.africa.fill" : "globe.europe.africa")
+                // WorldCereal: tap to load/unload all temp crops
+                groupButton(
+                    defaultSource: .worldCereal,
+                    label: "WorldCereal (10m)",
+                    icon: "globe.europe.africa",
+                    isGroupActive: anyWorldCerealActive
+                )
+                // WorldCereal variants sub-menu
+                if anyWorldCerealActive {
+                    Menu("  WorldCereal Crop…") {
+                        variantButton(.worldCereal, label: "All Temp. Crops")
+                        variantButton(.worldCerealMaize, label: "Maize")
+                        variantButton(.worldCerealWinterCereals, label: "Winter Cereals")
+                        variantButton(.worldCerealSpringCereals, label: "Spring Cereals")
+                    }
                 }
-
                 sourceButton(.esaWorldCover(year: 2021), label: "ESA WorldCover (10m)", icon: "globe.europe.africa")
-                sourceButton(.dynamicWorld, label: "Dynamic World (10m)", icon: "globe")
-                sourceButton(.copernicusLandCover, label: "Copernicus LC (100m)", icon: "satellite.fill")
-                sourceButton(.fromGLC, label: "FROM-GLC (30m)", icon: "square.grid.3x3.fill")
+                sourceButton(.dynamicWorld, label: "Esri Land Cover (10m)", icon: "globe")
+                sourceButton(.copernicusLandCover, label: "Copernicus LC100 (100m)", icon: "satellite.fill")
+                sourceButton(.fromGLC, label: "GLAD Land Cover (30m)", icon: "square.grid.3x3.fill")
             }
 
             // MARK: - North America
@@ -127,6 +141,68 @@ struct CropMapPickerView: View {
             .padding(.vertical, 8)
             .background(.ultraThinMaterial)
             .clipShape(Capsule())
+        }
+    }
+
+    /// Button for a group header: tap selects/deselects the default source for the group.
+    private func groupButton(defaultSource: CropMapSource, label: String, icon: String, isGroupActive: Bool) -> some View {
+        Button {
+            if isGroupActive {
+                // Remove all sources in this group (matching baseID)
+                settings.activeCropMaps.removeAll { src in
+                    switch (src, defaultSource) {
+                    case (.geoglamMajorityCrop, .geoglamMajorityCrop), (.geoglam, .geoglamMajorityCrop): return true
+                    case (.worldCereal, .worldCereal), (.worldCerealMaize, .worldCereal),
+                         (.worldCerealWinterCereals, .worldCereal), (.worldCerealSpringCereals, .worldCereal): return true
+                    default: return false
+                    }
+                }
+            } else {
+                let currentYear = settings.focusedCropMap.currentYear
+                let snapped = currentYear > 0 ? defaultSource.withClosestYear(currentYear) : defaultSource
+                settings.layerOpacity[snapped.id] = 1.0
+                if settings.allowMultipleLayers {
+                    settings.activeCropMaps.append(snapped)
+                    settings.focusedLayerIndex = settings.activeCropMaps.count - 1
+                } else {
+                    settings.activeCropMaps = [snapped]
+                    settings.focusedLayerIndex = 0
+                }
+                ActivityLog.shared.info("Loaded \(snapped.displayName)")
+            }
+        } label: {
+            Label(label, systemImage: isGroupActive ? "eye.fill" : icon)
+                .foregroundStyle(isGroupActive ? .green : .primary)
+        }
+    }
+
+    /// Button for switching to a specific variant within a group (e.g. GEOGLAM → Winter Wheat)
+    private func variantButton(_ source: CropMapSource, label: String) -> some View {
+        let active = settings.activeCropMaps.contains { $0.id == source.id }
+        let isGEOGLAM = source.id.hasPrefix("geoglam")
+        return Button {
+            // Replace the current group entry with this variant
+            settings.activeCropMaps = settings.activeCropMaps.map { existing in
+                if isGEOGLAM {
+                    switch existing {
+                    case .geoglamMajorityCrop, .geoglam: return source
+                    default: return existing
+                    }
+                } else {
+                    switch existing {
+                    case .worldCereal, .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals: return source
+                    default: return existing
+                    }
+                }
+            }
+            settings.hiddenClasses = []
+            ActivityLog.shared.info("Switched to \(source.displayName)")
+        } label: {
+            if active {
+                Label(label, systemImage: "checkmark")
+            } else {
+                Text(label)
+            }
         }
     }
 

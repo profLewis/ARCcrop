@@ -292,14 +292,16 @@ struct CropMapLegendData: Sendable {
 
         case .dynamicWorld:
             return CropMapLegendData(
-                title: "Dynamic World",
+                title: "Esri 10m Land Cover",
                 entries: [
-                    LegendEntry(color: Color(red: 0.0, green: 0.39, blue: 0.0), label: "Trees"),
-                    LegendEntry(color: Color(red: 0.53, green: 0.81, blue: 0.31), label: "Grass"),
-                    LegendEntry(color: Color(red: 0.55, green: 0.27, blue: 0.07), label: "Bare"),
-                    LegendEntry(color: Color(red: 1.0, green: 0.82, blue: 0.0), label: "Crops"),
-                    LegendEntry(color: Color(red: 0.68, green: 0.0, blue: 0.0), label: "Built"),
-                    LegendEntry(color: Color(red: 0.0, green: 0.0, blue: 0.8), label: "Water"),
+                    LegendEntry(color: Color(red: 65/255, green: 155/255, blue: 223/255), label: "Water"),          // #419BDF
+                    LegendEntry(color: Color(red: 57/255, green: 125/255, blue: 73/255), label: "Trees"),            // #397D49
+                    LegendEntry(color: Color(red: 228/255, green: 150/255, blue: 53/255), label: "Crops"),           // #E49635
+                    LegendEntry(color: Color(red: 227/255, green: 226/255, blue: 195/255), label: "Rangeland"),      // #E3E2C3
+                    LegendEntry(color: Color(red: 122/255, green: 135/255, blue: 198/255), label: "Flooded Veg"),    // #7A87C6
+                    LegendEntry(color: Color(red: 196/255, green: 40/255, blue: 27/255), label: "Built Area"),       // #C4281B
+                    LegendEntry(color: Color(red: 165/255, green: 155/255, blue: 143/255), label: "Bare Ground"),    // #A59B8F
+                    LegendEntry(color: Color(red: 168/255, green: 235/255, blue: 255/255), label: "Snow/Ice"),       // #A8EBFF
                 ]
             )
 
@@ -359,7 +361,7 @@ struct CropMapLegendData: Sendable {
 
         case .fromGLC:
             return CropMapLegendData(
-                title: "FROM-GLC",
+                title: "GLAD GLCLUC",
                 entries: [
                     LegendEntry(color: .yellow, label: "Cropland"),
                     LegendEntry(color: .green, label: "Forest"),

@@ -143,7 +143,7 @@ final class GEOGLAMOverlayManager {
 
         guard let srcCtx = CGContext(
             data: nil, width: srcW, height: srcH, bitsPerComponent: 8, bytesPerRow: srcW * 4,
-            space: CGColorSpaceCreateDeviceRGB(),
+            space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ), let srcData = srcCtx.data else { return nil }
         srcCtx.draw(cgImage, in: CGRect(x: 0, y: 0, width: srcW, height: srcH))
@@ -151,7 +151,7 @@ final class GEOGLAMOverlayManager {
 
         guard let outCtx = CGContext(
             data: nil, width: outSize, height: outSize, bitsPerComponent: 8, bytesPerRow: outSize * 4,
-            space: CGColorSpaceCreateDeviceRGB(),
+            space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ), let outData = outCtx.data else { return nil }
         let outPixels = outData.bindMemory(to: UInt8.self, capacity: outSize * outSize * 4)
@@ -190,30 +190,59 @@ final class GEOGLAMOverlayManager {
     }
 
     /// Apply per-pixel filtering to a GEOGLAM image, hiding specified RGB colors.
+    /// Uses nearest-color matching: for each target color, finds the closest actual pixel
+    /// color in the image, then filters using that exact value. This avoids color space
+    /// mismatches between legend definitions and actual pixel data.
     static func filterImage(_ image: UIImage, hiding colors: [(r: UInt8, g: UInt8, b: UInt8)]) -> UIImage? {
         guard !colors.isEmpty, let cgImage = image.cgImage else { return image }
         let w = cgImage.width, h = cgImage.height
         guard let ctx = CGContext(
             data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
-            space: CGColorSpaceCreateDeviceRGB(),
+            space: cgImage.colorSpace ?? CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else { return nil }
 
         ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: w, height: h))
         guard let pixels = ctx.data else { return nil }
         let buf = pixels.bindMemory(to: UInt8.self, capacity: w * h * 4)
-        let tolerance = 20
 
+        // Build histogram of actual pixel colors in the image
+        var colorHistogram: [UInt32: Int] = [:]
         for i in stride(from: 0, to: w * h * 4, by: 4) {
-            let r = buf[i], g = buf[i+1], b = buf[i+2]
             if buf[i+3] == 0 { continue }
-            for (tr, tg, tb) in colors {
-                if abs(Int(r) - Int(tr)) <= tolerance &&
-                   abs(Int(g) - Int(tg)) <= tolerance &&
-                   abs(Int(b) - Int(tb)) <= tolerance {
-                    buf[i+3] = 0
-                    break
+            let key = UInt32(buf[i]) << 16 | UInt32(buf[i+1]) << 8 | UInt32(buf[i+2])
+            colorHistogram[key, default: 0] += 1
+        }
+
+        // For each target color, find the closest actual pixel color in the image.
+        // This handles color space mismatches (sRGB vs P3 vs deviceRGB).
+        var exactColors: Set<UInt32> = []
+        for (tr, tg, tb) in colors {
+            var bestDist = Int.max
+            var bestKey: UInt32 = 0
+            for (key, count) in colorHistogram where count > 100 {
+                let r = Int(key >> 16 & 0xFF)
+                let g = Int(key >> 8 & 0xFF)
+                let b = Int(key & 0xFF)
+                let dist = abs(r - Int(tr)) + abs(g - Int(tg)) + abs(b - Int(tb))
+                if dist < bestDist {
+                    bestDist = dist
+                    bestKey = key
                 }
+            }
+            if bestDist < 200 { // Sanity limit — don't match wildly different colors
+                exactColors.insert(bestKey)
+            }
+        }
+
+        // Filter using exact matched colors (tolerance 2 for rounding)
+        var matched = 0
+        for i in stride(from: 0, to: w * h * 4, by: 4) {
+            if buf[i+3] == 0 { continue }
+            let key = UInt32(buf[i]) << 16 | UInt32(buf[i+1]) << 8 | UInt32(buf[i+2])
+            if exactColors.contains(key) {
+                buf[i+3] = 0
+                matched += 1
             }
         }
 

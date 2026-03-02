@@ -159,13 +159,13 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .geoIntaArgentina: "GeoINTA Argentina (2024)"
         case .esaWorldCover(let year): "ESA WorldCover (\(year))"
         case .gladCropland(let year): "GLAD Cropland (\(year))"
-        case .dynamicWorld: "Dynamic World (2024)"
+        case .dynamicWorld: "Esri 10m Land Cover (2023)"
         case .worldCereal: "ESA WorldCereal (2021)"
         case .worldCerealMaize: "ESA WorldCereal Maize (2021)"
         case .worldCerealWinterCereals: "ESA WorldCereal Winter Cereals (2021)"
         case .worldCerealSpringCereals: "ESA WorldCereal Spring Cereals (2021)"
-        case .copernicusLandCover: "Copernicus Land Cover (2019)"
-        case .fromGLC: "FROM-GLC (2020)"
+        case .copernicusLandCover: "Copernicus LC100 (2019)"
+        case .fromGLC: "GLAD Land Cover (2020)"
         case .mapBiomas(let year): "MapBiomas (\(year))"
         }
     }
@@ -201,10 +201,10 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .geoIntaArgentina: "WMS · 30m · Argentina"
         case .esaWorldCover: "10m · Global"
         case .gladCropland: "30m · Global"
-        case .dynamicWorld: "10m · Near-realtime · Global"
+        case .dynamicWorld: "ArcGIS · 10m · Global"
         case .worldCereal, .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals: "WMS · 10m · Global"
-        case .copernicusLandCover: "100m · Global"
-        case .fromGLC: "30m · Global"
+        case .copernicusLandCover: "WMS · 100m · Global"
+        case .fromGLC: "ArcGIS · 30m · Global"
         case .mapBiomas: "WMS · 30m · S. America"
         }
     }
@@ -243,11 +243,11 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .geoIntaArgentina: "Mapa Nacional de Cultivos. 30m crop type from Landsat/Sentinel. INTA (summer campaign)."
         case .esaWorldCover: "ESA WorldCover. 10m global land cover from Sentinel-1 and Sentinel-2. 11 classes."
         case .gladCropland: "GLAD Global Cropland. 30m binary cropland extent from Landsat. University of Maryland."
-        case .dynamicWorld: "Google Dynamic World. Near-realtime 10m land use/land cover from Sentinel-2."
+        case .dynamicWorld: "Esri/Impact Observatory Sentinel-2 10m Land Cover. Annual 9-class LULC from Sentinel-2. Free via ArcGIS Living Atlas."
         case .worldCereal, .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals:
             "ESA WorldCereal v100. 10m global crop type maps from Sentinel-2."
-        case .copernicusLandCover: "Copernicus Global Land Cover. 100m discrete classification from Proba-V."
-        case .fromGLC: "FROM-GLC. 30m land cover from Landsat/Sentinel. Tsinghua University."
+        case .copernicusLandCover: "Copernicus Global Land Service LC100. 100m discrete classification. VITO/Copernicus."
+        case .fromGLC: "GLAD Global Land Cover/Land Use. 30m from Landsat. University of Maryland."
         case .mapBiomas: "MapBiomas. 30m annual land use/land cover for South America from Landsat."
         }
     }
@@ -262,19 +262,13 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
              .abaresAustralia, .lcdbNewZealand, .geoIntaArgentina,
              .esaWorldCover, .gladCropland, .worldCereal,
              .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals,
-             .mapBiomas:
+             .mapBiomas, .dynamicWorld, .fromGLC, .copernicusLandCover:
             false
-        case .dynamicWorld, .fromGLC:
-            true
-        case .copernicusLandCover:
-            true
         }
     }
 
     var apiKeyProvider: APIKeyProvider? {
         switch self {
-        case .dynamicWorld, .fromGLC: .googleEarthEngine
-        case .copernicusLandCover: .copernicus
         default: nil
         }
     }
@@ -289,7 +283,7 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
              .abaresAustralia, .lcdbNewZealand, .geoIntaArgentina,
              .esaWorldCover, .gladCropland, .worldCereal,
              .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals,
-             .mapBiomas:
+             .mapBiomas, .dynamicWorld, .fromGLC, .copernicusLandCover:
             return true
         default:
             guard let provider = apiKeyProvider else { return false }
@@ -329,7 +323,7 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .geoIntaArgentina: 2024
         case .esaWorldCover(let y): y
         case .gladCropland(let y): y
-        case .dynamicWorld: 2024
+        case .dynamicWorld: 2023
         case .worldCereal, .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals: 2021
         case .copernicusLandCover: 2019
         case .fromGLC: 2020
@@ -350,7 +344,7 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .aafcCanada: 2009...2024
         case .esaWorldCover: 2020...2021
         case .gladCropland: 2003...2020
-        case .dynamicWorld: 2018...2024
+        case .dynamicWorld: 2017...2023
         case .worldCereal, .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals: 2021...2021
         case .copernicusLandCover: 2015...2019
         case .fromGLC: 2017...2020
@@ -389,13 +383,13 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .geoIntaArgentina: "GeoINTA Argentina"
         case .esaWorldCover: "ESA WorldCover"
         case .gladCropland: "GLAD Cropland"
-        case .dynamicWorld: "Dynamic World"
+        case .dynamicWorld: "Esri Land Cover"
         case .worldCereal: "WorldCereal"
         case .worldCerealMaize: "WC Maize"
         case .worldCerealWinterCereals: "WC Winter Cereals"
         case .worldCerealSpringCereals: "WC Spring Cereals"
         case .copernicusLandCover: "Copernicus LC"
-        case .fromGLC: "FROM-GLC"
+        case .fromGLC: "GLAD GLCLUC"
         case .mapBiomas: "MapBiomas"
         }
     }
@@ -430,10 +424,10 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .geoIntaArgentina: "INTA"
         case .esaWorldCover: "ESA/Copernicus"
         case .gladCropland: "UMD/GLAD"
-        case .dynamicWorld: "Google/WRI"
+        case .dynamicWorld: "Esri/IO"
         case .worldCereal, .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals: "ESA/VITO"
         case .copernicusLandCover: "ESA/Copernicus"
-        case .fromGLC: "Tsinghua"
+        case .fromGLC: "UMD/GLAD"
         case .mapBiomas: "MapBiomas"
         }
     }

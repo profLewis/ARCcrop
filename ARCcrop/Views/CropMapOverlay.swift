@@ -302,31 +302,58 @@ final class WMSTileURLProtocol: URLProtocol, @unchecked Sendable {
 
     // MARK: Per-pixel filtering
 
+    /// Filter pixels using nearest-color matching: for each target color, find the closest
+    /// actual pixel color in the tile, then filter using that exact value. This handles
+    /// color space mismatches and rendering differences across different WMS servers.
     static func filterPixels(_ pngData: Data, hiding colors: [(r: UInt8, g: UInt8, b: UInt8)]) -> Data? {
         guard let image = UIImage(data: pngData), let cgImage = image.cgImage else { return nil }
         let w = cgImage.width, h = cgImage.height
-        let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
         guard let ctx = CGContext(
             data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
-            space: srgb,
+            space: cgImage.colorSpace ?? CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else { return nil }
 
         ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: w, height: h))
         guard let pixels = ctx.data else { return nil }
         let buf = pixels.bindMemory(to: UInt8.self, capacity: w * h * 4)
-        let tolerance = 3  // Low tolerance — WMS classification tiles use exact colors
 
+        // Build histogram of actual pixel colors in this tile
+        var colorHistogram: [UInt32: Int] = [:]
         for i in stride(from: 0, to: w * h * 4, by: 4) {
-            let r = buf[i], g = buf[i + 1], b = buf[i + 2]
             if buf[i + 3] == 0 { continue }
-            for (tr, tg, tb) in colors {
-                if abs(Int(r) - Int(tr)) <= tolerance &&
-                   abs(Int(g) - Int(tg)) <= tolerance &&
-                   abs(Int(b) - Int(tb)) <= tolerance {
-                    buf[i + 3] = 0
-                    break
+            let key = UInt32(buf[i]) << 16 | UInt32(buf[i + 1]) << 8 | UInt32(buf[i + 2])
+            colorHistogram[key, default: 0] += 1
+        }
+
+        // For each target color, find the closest actual pixel color
+        var exactColors: Set<UInt32> = []
+        for (tr, tg, tb) in colors {
+            var bestDist = Int.max
+            var bestKey: UInt32 = 0
+            for (key, count) in colorHistogram where count > 4 {
+                let r = Int(key >> 16 & 0xFF)
+                let g = Int(key >> 8 & 0xFF)
+                let b = Int(key & 0xFF)
+                let dist = abs(r - Int(tr)) + abs(g - Int(tg)) + abs(b - Int(tb))
+                if dist < bestDist {
+                    bestDist = dist
+                    bestKey = key
                 }
+            }
+            if bestDist < 100 {
+                exactColors.insert(bestKey)
+            }
+        }
+
+        guard !exactColors.isEmpty else { return nil }
+
+        // Filter using exact matched colors
+        for i in stride(from: 0, to: w * h * 4, by: 4) {
+            if buf[i + 3] == 0 { continue }
+            let key = UInt32(buf[i]) << 16 | UInt32(buf[i + 1]) << 8 | UInt32(buf[i + 2])
+            if exactColors.contains(key) {
+                buf[i + 3] = 0
             }
         }
 
@@ -639,6 +666,32 @@ enum CropMapOverlayFactory {
                     baseURL: "http://azure.solved.eco.br:8080/geoserver/ows",
                     layers: "solved:mapbiomas"),
                 minZoom: 0, maxZoom: 14, needs4326: false)
+
+        case .dynamicWorld:
+            // Esri/Impact Observatory Sentinel-2 10m Land Cover (free, no auth)
+            // renderingRule forces classified color output instead of raw integer values
+            let rule = "%7B%22rasterFunction%22%3A%22Cartographic%20Renderer%20-%20Legend%20and%20Attribute%20Table%22%7D"
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: "https://ic.imagery1.arcgis.com/arcgis/rest/services/Sentinel2_10m_LandCover/ImageServer/exportImage?bbox={bbox-epsg-3857}&bboxSR=3857&size=256,256&imageSR=3857&format=png&f=image&renderingRule=\(rule)",
+                minZoom: 0, maxZoom: 14, needs4326: false)
+
+        case .copernicusLandCover:
+            // Copernicus Global Land Service LC100 via VITO WMS
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://globalland.vito.be/geoserver/clc/wms",
+                    layers: "clc:lc_global_100m_yearly_v3",
+                    wmsVersion: "1.1.1"),
+                minZoom: 0, maxZoom: 13, needs4326: false)
+
+        case .fromGLC:
+            // GLAD Global Land Cover/Land Use via ArcGIS tile service (XYZ)
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: "https://tiles.arcgis.com/tiles/HVjI8GKrRtjcQ4Ry/arcgis/rest/services/Global_Land_Cover_Land_Use_Systems/MapServer/tile/{z}/{y}/{x}",
+                minZoom: 0, maxZoom: 9, needs4326: false)
 
         default:
             return nil

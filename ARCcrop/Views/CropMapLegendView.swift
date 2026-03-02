@@ -170,7 +170,7 @@ struct CropMapLegendView: View {
 
 struct MultiLegendView: View {
     @Environment(AppSettings.self) private var settings
-    @State private var panelOffset: CGSize = .zero
+    @GestureState private var panelOffset: CGSize = .zero
     @State private var panelSaved: CGSize = .zero
 
     /// Show legends for all active sources that have legend data
@@ -181,16 +181,17 @@ struct MultiLegendView: View {
         }
     }
 
-    /// Drag gesture for moving the whole panel
+    /// Drag gesture for moving the whole panel — uses GestureState for smooth updates
     private var panelDrag: some Gesture {
-        DragGesture()
-            .onChanged { panelOffset = $0.translation }
+        DragGesture(minimumDistance: 4)
+            .updating($panelOffset) { value, state, _ in
+                state = value.translation
+            }
             .onEnded { value in
                 panelSaved = CGSize(
                     width: panelSaved.width + value.translation.width,
                     height: panelSaved.height + value.translation.height
                 )
-                panelOffset = .zero
             }
     }
 

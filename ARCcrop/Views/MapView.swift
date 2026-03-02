@@ -812,61 +812,20 @@ struct MapContainerView: UIViewRepresentable {
             return
         }
 
-        // Filter changed (class toggle) or data sources changed — rebuild layers
+        // Filter changed (class toggle) — full style reload for all source types
         if filterChanged && !sourcesChanged {
             coord.currentHidden = hiddenClasses
+            coord.styleGeneration += 1
+            let gen = coord.styleGeneration
+            coord.styleLoaded = false
+            ActivityLog.shared.resetTileProgress()
 
-            // Try in-place update for GEOGLAM sources (avoids full reload)
-            var geoglamUpdated = false
-            let hasOnlyGeoglam = activeCropMaps.allSatisfy { source in
-                switch source {
-                case .geoglamMajorityCrop, .geoglam, .none: return true
-                default: return false
-                }
-            }
+            ObjCTryCatch({ coord.removeAllDataLayers(style: style) }, nil)
 
-            if hasOnlyGeoglam {
-                for source in activeCropMaps {
-                    let sourceId = "src-\(source.id)"
-                    if let imgSource = style.source(withIdentifier: sourceId) as? MLNImageSource {
-                        var image: UIImage?
-                        switch source {
-                        case .geoglamMajorityCrop:
-                            image = GEOGLAMOverlayManager.shared.mercatorImage(for: nil)
-                        case .geoglam(let crop):
-                            image = GEOGLAMOverlayManager.shared.mercatorImage(for: crop)
-                        default: break
-                        }
-                        if var img = image {
-                            if !hiddenClasses.isEmpty {
-                                let entries = CropMapLegendData.forSource(source)?.entries ?? []
-                                let filterColors = LegendColorExtractor.rgbValues(for: entries, matching: hiddenClasses)
-                                if !filterColors.isEmpty {
-                                    img = GEOGLAMOverlayManager.filterImage(img, hiding: filterColors) ?? img
-                                }
-                            }
-                            imgSource.image = img
-                            geoglamUpdated = true
-                        }
-                    }
-                }
-            }
-
-            if !geoglamUpdated {
-                // Full style reload needed (WMS sources need new filter URL)
-                coord.currentHidden = hiddenClasses
-                coord.styleGeneration += 1
-                let gen = coord.styleGeneration
-                coord.styleLoaded = false
-                ActivityLog.shared.resetTileProgress()
-
-                ObjCTryCatch({ coord.removeAllDataLayers(style: style) }, nil)
-
-                coord.expectedGeneration = gen
-                DispatchQueue.main.async {
-                    guard coord.styleGeneration == gen else { return }
-                    mapView.styleURL = Self.writeStyleJSON(mapStyle: mapStyle)
-                }
+            coord.expectedGeneration = gen
+            DispatchQueue.main.async {
+                guard coord.styleGeneration == gen else { return }
+                mapView.styleURL = Self.writeStyleJSON(mapStyle: mapStyle)
             }
         }
 
@@ -1025,6 +984,7 @@ struct MapContainerView: UIViewRepresentable {
 
                 let tileURL: String
                 let isPMTiles = params.tileURLTemplate.contains(PMTilesURLProtocol.proxyHost)
+                let isXYZ = params.tileURLTemplate.contains("{z}")  // XYZ tile sources can't use WMS proxy
                 if isPMTiles {
                     // PMTiles source — append filter as query param (applied in URLProtocol)
                     if !filterColors.isEmpty {
@@ -1034,8 +994,8 @@ struct MapContainerView: UIViewRepresentable {
                     } else {
                         tileURL = params.tileURLTemplate
                     }
-                } else if params.needs4326 || !filterColors.isEmpty {
-                    // WMS source — route through URLProtocol proxy
+                } else if !isXYZ && (params.needs4326 || !filterColors.isEmpty) {
+                    // WMS/bbox source — route through URLProtocol proxy for reprojection/filtering
                     let proxyTemplate = params.tileURLTemplate
                         .replacingOccurrences(of: "{bbox-epsg-3857}", with: "PROXY_BBOX")
                     tileURL = CropMapOverlayFactory.proxyURL(
@@ -1043,7 +1003,7 @@ struct MapContainerView: UIViewRepresentable {
                         needs4326: params.needs4326,
                         filterColors: filterColors)
                 } else {
-                    // Direct URL — best performance, MapLibre caches natively
+                    // Direct URL (XYZ tiles or unfiltered WMS) — MapLibre caches natively
                     tileURL = params.tileURLTemplate
                 }
 
