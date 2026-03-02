@@ -843,14 +843,15 @@ struct MapContainerView: UIViewRepresentable {
             }
 
             if !geoglamUpdated {
-                // Full rebuild needed (WMS sources need new filter URL)
-                coord.removeAllDataLayers(style: style)
+                // Full style reload needed (WMS sources need new filter URL)
+                coord.currentHidden = hiddenClasses
+                coord.styleLoaded = false
                 ActivityLog.shared.resetTileProgress()
-                coord.addDataLayers(style: style)
+                mapView.styleURL = Self.writeStyleJSON(mapStyle: mapStyle)
             }
         }
 
-        // Data sources changed — rebuild all data layers
+        // Data sources changed — full style reload to avoid MapLibre internal state issues
         if sourcesChanged {
             let oldIDs = Set(coord.currentSources.map(\.id))
             let newIDs = Set(activeCropMaps.map(\.id))
@@ -860,13 +861,11 @@ struct MapContainerView: UIViewRepresentable {
             coord.currentHidden = hiddenClasses
             coord.currentOpacities = layerOpacity
             coord.hasAutoSwitched = false
-
-            // Remove all existing data layers and sources
-            coord.removeAllDataLayers(style: style)
             ActivityLog.shared.resetTileProgress()
 
-            // Add data layers for each active source
-            coord.addDataLayers(style: style)
+            // Reload the entire style — didFinishLoading will call addDataLayers fresh
+            coord.styleLoaded = false
+            mapView.styleURL = Self.writeStyleJSON(mapStyle: mapStyle)
 
             // Zoom to coverage of newly added source
             if let addedSource = activeCropMaps.last, addedIDs.contains(addedSource.id),
