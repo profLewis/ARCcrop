@@ -921,20 +921,22 @@ struct MapContainerView: UIViewRepresentable {
 
         func removeAllDataLayers(style: MLNStyle) {
             // Remove layers and sources with "data-" and "src-" prefixes
-            for layerID in style.layers.compactMap(\.identifier) {
-                if layerID.hasPrefix("data-") {
-                    if let layer = style.layer(withIdentifier: layerID) {
-                        style.removeLayer(layer)
+            ObjCTryCatch({
+                for layerID in style.layers.compactMap(\.identifier) {
+                    if layerID.hasPrefix("data-") {
+                        if let layer = style.layer(withIdentifier: layerID) {
+                            style.removeLayer(layer)
+                        }
                     }
                 }
-            }
-            for sourceID in style.sources.compactMap(\.identifier) {
-                if sourceID.hasPrefix("src-") {
-                    if let source = style.source(withIdentifier: sourceID) {
-                        style.removeSource(source)
+                for sourceID in style.sources.compactMap(\.identifier) {
+                    if sourceID.hasPrefix("src-") {
+                        if let source = style.source(withIdentifier: sourceID) {
+                            style.removeSource(source)
+                        }
                     }
                 }
-            }
+            }, nil)
         }
 
         func addDataLayers(style: MLNStyle) {
@@ -1011,16 +1013,27 @@ struct MapContainerView: UIViewRepresentable {
                     identifier: sourceId,
                     tileURLTemplates: [tileURL],
                     options: [
-                        .tileSize: 256,
-                        .minimumZoomLevel: params.minZoom,
-                        .maximumZoomLevel: params.maxZoom
+                        .tileSize: NSNumber(value: 256),
+                        .minimumZoomLevel: NSNumber(value: params.minZoom),
+                        .maximumZoomLevel: NSNumber(value: params.maxZoom)
                     ]
                 )
-                style.addSource(tileSource)
 
-                let layer = MLNRasterStyleLayer(identifier: layerId, source: tileSource)
-                layer.rasterOpacity = NSExpression(forConstantValue: currentOpacities[source.id] ?? 1.0)
-                style.addLayer(layer)
+                var addError: NSError?
+                let ok = ObjCTryCatch({
+                    style.addSource(tileSource)
+                    let layer = MLNRasterStyleLayer(identifier: layerId, source: tileSource)
+                    layer.rasterOpacity = NSExpression(forConstantValue: self.currentOpacities[source.id] ?? 1.0)
+                    style.addLayer(layer)
+                }, &addError)
+
+                if !ok {
+                    ActivityLog.shared.warn("Layer add failed: \(addError?.localizedDescription ?? "unknown") — retrying after style rebuild")
+                    // Force style reload to get a clean state
+                    self.styleLoaded = false
+                    mapView?.styleURL = MapContainerView.writeStyleJSON(mapStyle: self.currentMapStyle)
+                    return
+                }
 
                 ActivityLog.shared.activity("Loading \(source.sourceName)")
                 waitingForInitialRender = true
@@ -1062,51 +1075,58 @@ struct MapContainerView: UIViewRepresentable {
                 topRight: CLLocationCoordinate2D(latitude: 85.051, longitude: 180)
             )
             let imgSource = MLNImageSource(identifier: sourceId, coordinateQuad: quad, image: image)
-            style.addSource(imgSource)
-
-            let layer = MLNRasterStyleLayer(identifier: layerId, source: imgSource)
-            layer.rasterOpacity = NSExpression(forConstantValue: currentOpacities[source.id] ?? 1.0)
-            style.addLayer(layer)
+            ObjCTryCatch({
+                style.addSource(imgSource)
+                let layer = MLNRasterStyleLayer(identifier: layerId, source: imgSource)
+                layer.rasterOpacity = NSExpression(forConstantValue: self.currentOpacities[source.id] ?? 1.0)
+                style.addLayer(layer)
+            }, nil)
         }
 
         // MARK: Reference overlays (LSIB, OS, FTW)
 
         func syncReferenceOverlays(style: MLNStyle) {
             // Remove existing reference layers
-            for id in ["ref-lsib", "ref-os-field", "ref-ftw-fill", "ref-ftw-outline"] {
-                if let layer = style.layer(withIdentifier: id) {
-                    style.removeLayer(layer)
+            ObjCTryCatch({
+                for id in ["ref-lsib", "ref-os-field", "ref-ftw-fill", "ref-ftw-outline"] {
+                    if let layer = style.layer(withIdentifier: id) {
+                        style.removeLayer(layer)
+                    }
                 }
-            }
-            for id in ["refsrc-lsib", "refsrc-os-field", "refsrc-ftw"] {
-                if let source = style.source(withIdentifier: id) {
-                    style.removeSource(source)
+                for id in ["refsrc-lsib", "refsrc-os-field", "refsrc-ftw"] {
+                    if let source = style.source(withIdentifier: id) {
+                        style.removeSource(source)
+                    }
                 }
-            }
+            }, nil)
 
             // LSIB political boundaries
             if showingPoliticalBoundaries {
-                let source = MLNRasterTileSource(
-                    identifier: "refsrc-lsib",
-                    tileURLTemplates: [CropMapOverlayFactory.lsibTemplate],
-                    options: [.tileSize: 256]
-                )
-                style.addSource(source)
-                let layer = MLNRasterStyleLayer(identifier: "ref-lsib", source: source)
-                style.addLayer(layer)
+                ObjCTryCatch({
+                    let source = MLNRasterTileSource(
+                        identifier: "refsrc-lsib",
+                        tileURLTemplates: [CropMapOverlayFactory.lsibTemplate],
+                        options: [.tileSize: 256]
+                    )
+                    style.addSource(source)
+                    let layer = MLNRasterStyleLayer(identifier: "ref-lsib", source: source)
+                    style.addLayer(layer)
+                }, nil)
             }
 
             // OS Field Boundaries
             if showingFieldBoundaries, let key = KeychainService.load(for: .osDataHub) {
-                let template = CropMapOverlayFactory.osFieldBoundaryTemplate(apiKey: key)
-                let source = MLNRasterTileSource(
-                    identifier: "refsrc-os-field",
-                    tileURLTemplates: [template],
-                    options: [.tileSize: 256, .maximumZoomLevel: 20]
-                )
-                style.addSource(source)
-                let layer = MLNRasterStyleLayer(identifier: "ref-os-field", source: source)
-                style.addLayer(layer)
+                ObjCTryCatch({
+                    let template = CropMapOverlayFactory.osFieldBoundaryTemplate(apiKey: key)
+                    let source = MLNRasterTileSource(
+                        identifier: "refsrc-os-field",
+                        tileURLTemplates: [template],
+                        options: [.tileSize: 256, .maximumZoomLevel: 20]
+                    )
+                    style.addSource(source)
+                    let layer = MLNRasterStyleLayer(identifier: "ref-os-field", source: source)
+                    style.addLayer(layer)
+                }, nil)
             }
 
             // FTW field boundaries (PMTiles — native MapLibre support)
@@ -1115,7 +1135,7 @@ struct MapContainerView: UIViewRepresentable {
                     identifier: "refsrc-ftw",
                     tileURLTemplates: ["pmtiles://https://data.source.coop/kerner-lab/fields-of-the-world/ftw-sources.pmtiles"]
                 )
-                style.addSource(source)
+                ObjCTryCatch({ style.addSource(source) }, nil)
 
                 let fill = MLNFillStyleLayer(identifier: "ref-ftw-fill", source: source)
                 fill.sourceLayerIdentifier = "default"

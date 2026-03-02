@@ -87,6 +87,7 @@
 		F856C6349A7C878758FD8E5B /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A02672CF89F10154965C9B36 /* LogView.swift */; };
 		FA6EB382E015316D3E135772 /* GEOGLAM_Rice.png in Resources */ = {isa = PBXBuildFile; fileRef = 43B36A1F88608FF4BF3F01B9 /* GEOGLAM_Rice.png */; };
 		FD3D543A632D7475A86173D9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 78A9D698087489E800773B7D /* Assets.xcassets */; };
+		OBJC0004 /* ObjCExceptionCatcher.m in Sources */ = {isa = PBXBuildFile; fileRef = OBJC0002 /* ObjCExceptionCatcher.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -132,6 +133,9 @@
 		PMTILES011 /* usda_cdl_2023.pmtiles */ = {isa = PBXFileReference; lastKnownFileType = file; path = usda_cdl_2023.pmtiles; sourceTree = "<group>"; };
 		E6067AE374012A63358FF922 /* CropCalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropCalendarService.swift; sourceTree = "<group>"; };
 		E938A2818451A0F80A9B03B6 /* GEOGLAM_Soybean.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_Soybean.png; sourceTree = "<group>"; };
+		OBJC0001 /* ObjCExceptionCatcher.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ObjCExceptionCatcher.h; sourceTree = "<group>"; };
+		OBJC0002 /* ObjCExceptionCatcher.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ObjCExceptionCatcher.m; sourceTree = "<group>"; };
+		OBJC0003 /* ARCcrop-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "ARCcrop-Bridging-Header.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -226,6 +230,7 @@
 			children = (
 				F2C5D51FD88FB3D9272BD4E5 /* App */,
 				4B98826AF85DA90414588514 /* Models */,
+				OBJC0005 /* ObjC */,
 				6EAEDDBAF4901E8AE23E3B6B /* Resources */,
 				6D7E8D04CF94A09C8127E70A /* Services */,
 				68A4257A4DEF036EE4413F3A /* Views */,
@@ -266,6 +271,17 @@
 			);
 			name = App;
 			path = ARCcrop/App;
+			sourceTree = "<group>";
+		};
+		OBJC0005 /* ObjC */ = {
+			isa = PBXGroup;
+			children = (
+				OBJC0003 /* ARCcrop-Bridging-Header.h */,
+				OBJC0001 /* ObjCExceptionCatcher.h */,
+				OBJC0002 /* ObjCExceptionCatcher.m */,
+			);
+			name = ObjC;
+			path = ARCcrop;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -437,6 +453,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				OBJC0004 /* ObjCExceptionCatcher.m in Sources */,
 				PMTILES003 /* PMTilesSource.swift in Sources */,
 				F45FA43BAE15BA7054D4474E /* ARCcropApp.swift in Sources */,
 				4A206ADD488F05FEAC18D89C /* ActivityLog.swift in Sources */,
@@ -492,6 +509,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.arccrop.app;
 				SDKROOT = iphoneos;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "ARCcrop/ARCcrop-Bridging-Header.h";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -570,6 +588,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.arccrop.app;
 				SDKROOT = iphoneos;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "ARCcrop/ARCcrop-Bridging-Header.h";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
