@@ -13,12 +13,43 @@ final class AppSettings {
 
     var vegetationIndex: VegetationIndex = .ndvi
 
+    /// When true, crop map layers load even on cellular. When false, layers are deferred until WiFi.
+    var allowCellularLoading: Bool = false {
+        didSet { UserDefaults.standard.set(allowCellularLoading, forKey: "allowCellularLoading") }
+    }
+
+    /// Layers saved from startup that were deferred because of cellular-only connectivity.
+    var deferredCropMaps: [CropMapSource]?
+
+    /// Whether to suppress persisting activeCropMaps (used during defer/restore).
+    private var suppressSave = false
+
     /// Ordered list of active crop map layers (bottom to top)
     var activeCropMaps: [CropMapSource] = [] {
         didSet {
+            guard !suppressSave else { return }
             let ids = activeCropMaps.map(\.id)
             UserDefaults.standard.set(ids, forKey: "activeCropMaps")
         }
+    }
+
+    /// Called once at startup after network status is known.
+    /// If on cellular and cellular loading is disabled, defers the restored layers.
+    func deferLayersIfNeeded(isWiFi: Bool) {
+        guard !isWiFi, !allowCellularLoading, !activeCropMaps.isEmpty else { return }
+        deferredCropMaps = activeCropMaps
+        suppressSave = true
+        activeCropMaps = []
+        suppressSave = false
+        ActivityLog.shared.info("Layers deferred — waiting for WiFi")
+    }
+
+    /// Restores deferred layers (called when WiFi connects or user enables cellular loading).
+    func restoreDeferredLayers() {
+        guard let deferred = deferredCropMaps, !deferred.isEmpty else { return }
+        activeCropMaps = deferred
+        deferredCropMaps = nil
+        ActivityLog.shared.info("Layers restored")
     }
 
     /// Per-source opacity: key = source.id, value = 0.05...1.0
@@ -170,6 +201,7 @@ final class AppSettings {
         if let lang = UserDefaults.standard.string(forKey: "faoLanguage"), !lang.isEmpty {
             self.faoLanguage = lang
         }
+        self.allowCellularLoading = UserDefaults.standard.bool(forKey: "allowCellularLoading")
         self.autoBestMap = UserDefaults.standard.bool(forKey: "autoBestMap")
         if UserDefaults.standard.object(forKey: "allowMultipleLayers") != nil {
             self.allowMultipleLayers = UserDefaults.standard.bool(forKey: "allowMultipleLayers")

@@ -42,6 +42,15 @@ struct SettingsView: View {
                     Text("GEOGLAM and USDA CDL require no API keys.")
                 }
 
+                Section {
+                    @Bindable var settings = settings
+                    Toggle("Load layers on cellular", isOn: $settings.allowCellularLoading)
+                } header: {
+                    Text("Network")
+                } footer: {
+                    Text("When off, saved crop map layers are deferred on startup until WiFi is available.")
+                }
+
                 #if !os(tvOS)
                 Section("Tile Cache") {
                     @Bindable var settings = settings

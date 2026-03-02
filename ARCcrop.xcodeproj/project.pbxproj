@@ -15,6 +15,8 @@
 		02D4D1F34E6173838ED004C0 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6235C3A2D68A2A4C0B3E5D73 /* AppSettings.swift */; };
 		03C071F1AE782A8846AA25E1 /* CropMapLegend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64EBB01C61BC104AF5E325CE /* CropMapLegend.swift */; };
 		082023C1B178EB50691EE037 /* CropCondition.swift in Sources */ = {isa = PBXBuildFile; fileRef = A62592A5CEF5A7B2AA356009 /* CropCondition.swift */; };
+		C3E7A1B9D5F608244A1E7B3D /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1C3D5E9F2048671DA3B5C /* NetworkMonitor.swift */; };
+		D4F8B2CAE60719355B2F8C4E /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A1C3D5E9F2048671DA3B5C /* NetworkMonitor.swift */; };
 		09284681B5F6BDD44F848A48 /* CropMapLegend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64EBB01C61BC104AF5E325CE /* CropMapLegend.swift */; };
 		09FB02486C707F5F9C22601E /* GEOGLAM_SpringWheat_frac.png in Resources */ = {isa = PBXBuildFile; fileRef = D71380BDB448C44815D043DD /* GEOGLAM_SpringWheat_frac.png */; };
 		0A596715593FD7ADB417F959 /* GEOGLAM_CropPicture.png in Resources */ = {isa = PBXBuildFile; fileRef = 238F2DB385A78DF247159F5A /* GEOGLAM_CropPicture.png */; };
@@ -108,6 +110,7 @@
 		652673D194F0858ECEFA52F7 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
 		78A9D698087489E800773B7D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8BFFC55A509E720EB88A1C0A /* ActivityLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityLog.swift; sourceTree = "<group>"; };
+		B7A1C3D5E9F2048671DA3B5C /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		9EDE7D64503C61C04C4BC95A /* GEOGLAM_WinterWheat_frac.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_WinterWheat_frac.png; sourceTree = "<group>"; };
 		9F7795F197E440CE4DC38545 /* GEOGLAM_WinterWheat.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = GEOGLAM_WinterWheat.png; sourceTree = "<group>"; };
 		A02672CF89F10154965C9B36 /* LogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogView.swift; sourceTree = "<group>"; };
@@ -150,6 +153,7 @@
 				64EBB01C61BC104AF5E325CE /* CropMapLegend.swift */,
 				AF12F880EF1F0103818148A3 /* CropMapSource.swift */,
 				053C6DE2C87F81FD623047A5 /* EODataSource.swift */,
+				B7A1C3D5E9F2048671DA3B5C /* NetworkMonitor.swift */,
 			);
 			name = Models;
 			path = ARCcrop/Models;
@@ -424,6 +428,7 @@
 				D3D04733764EF7CC440FCEEC /* LocationService.swift in Sources */,
 				F856C6349A7C878758FD8E5B /* LogView.swift in Sources */,
 				D90D613C0F9C865D62BF5CDF /* MapView.swift in Sources */,
+				D4F8B2CAE60719355B2F8C4E /* NetworkMonitor.swift in Sources */,
 				BAB42B05C33E65CFEA59DE20 /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -453,6 +458,7 @@
 				1DBDED65E3F6F65EEF14CDD8 /* LocationService.swift in Sources */,
 				E17E126CFC5EDB95FAB24870 /* LogView.swift in Sources */,
 				775C5256FB00936A5DCBF883 /* MapView.swift in Sources */,
+				C3E7A1B9D5F608244A1E7B3D /* NetworkMonitor.swift in Sources */,
 				D9E8F2C4205CB3C1DC83FDDF /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
