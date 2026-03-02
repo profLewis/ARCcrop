@@ -269,7 +269,8 @@ struct CropMapLegendData: Sendable {
         case .invekosAustria, .alvFlanders, .sigpacSpain, .fvmDenmark, .lpisCzechia,
              .gerkSlovenia, .arkodCroatia, .gsaaEstonia, .latviaFieldBlocks,
              .ifapPortugal, .lpisPoland, .jordbrukSweden, .flikLuxembourg, .blwSwitzerland,
-             .abaresAustralia, .lcdbNewZealand, .geoIntaArgentina:
+             .abaresAustralia, .lcdbNewZealand, .geoIntaArgentina,
+             .walloniaAgriculture, .nibioNorway, .indiaBhuvan, .indonesiaKlhk:
             return nil
 
         case .esaWorldCover:
@@ -367,6 +368,114 @@ struct CropMapLegendData: Sendable {
                     LegendEntry(color: .green, label: "Forest"),
                     LegendEntry(color: .cyan, label: "Grassland"),
                     LegendEntry(color: .gray, label: "Other"),
+                ]
+            )
+
+        case .modisLandCover:
+            // Standard MODIS IGBP 17-class land cover palette
+            return CropMapLegendData(
+                title: "MODIS Land Cover",
+                entries: [
+                    LegendEntry(color: Color(red: 5/255, green: 100/255, blue: 35/255), label: "Evergreen Needleleaf"),
+                    LegendEntry(color: Color(red: 0/255, green: 160/255, blue: 0/255), label: "Evergreen Broadleaf"),
+                    LegendEntry(color: Color(red: 170/255, green: 200/255, blue: 0/255), label: "Deciduous Needleleaf"),
+                    LegendEntry(color: Color(red: 0/255, green: 220/255, blue: 130/255), label: "Deciduous Broadleaf"),
+                    LegendEntry(color: Color(red: 76/255, green: 115/255, blue: 0/255), label: "Mixed Forest"),
+                    LegendEntry(color: Color(red: 255/255, green: 180/255, blue: 50/255), label: "Closed Shrublands"),
+                    LegendEntry(color: Color(red: 255/255, green: 235/255, blue: 175/255), label: "Open Shrublands"),
+                    LegendEntry(color: Color(red: 0/255, green: 210/255, blue: 0/255), label: "Woody Savannas"),
+                    LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 100/255), label: "Savannas"),
+                    LegendEntry(color: Color(red: 220/255, green: 240/255, blue: 100/255), label: "Grasslands"),
+                    LegendEntry(color: Color(red: 0/255, green: 170/255, blue: 230/255), label: "Wetlands"),
+                    LegendEntry(color: Color(red: 255/255, green: 190/255, blue: 255/255), label: "Croplands"),
+                    LegendEntry(color: Color(red: 255/255, green: 0/255, blue: 0/255), label: "Urban"),
+                    LegendEntry(color: Color(red: 255/255, green: 210/255, blue: 120/255), label: "Cropland/Natural"),
+                    LegendEntry(color: Color(red: 0/255, green: 0/255, blue: 200/255), label: "Water"),
+                    LegendEntry(color: Color(red: 200/255, green: 200/255, blue: 200/255), label: "Barren"),
+                ]
+            )
+
+        case .gfsadCropland:
+            return CropMapLegendData(
+                title: "GFSAD Croplands",
+                entries: [
+                    LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 0/255), label: "Cropland"),
+                    LegendEntry(color: Color(red: 200/255, green: 200/255, blue: 200/255), label: "Non-Cropland"),
+                ]
+            )
+
+        case .nalcms:
+            // Standard NALCMS 19-class palette
+            return CropMapLegendData(
+                title: "NALCMS",
+                entries: [
+                    LegendEntry(color: Color(red: 0/255, green: 61/255, blue: 0/255), label: "Temp. Needleleaf"),
+                    LegendEntry(color: Color(red: 148/255, green: 168/255, blue: 0/255), label: "Sub-polar Taiga"),
+                    LegendEntry(color: Color(red: 0/255, green: 130/255, blue: 0/255), label: "Trop. Broadleaf Evergreen"),
+                    LegendEntry(color: Color(red: 0/255, green: 160/255, blue: 0/255), label: "Trop. Broadleaf Deciduous"),
+                    LegendEntry(color: Color(red: 0/255, green: 207/255, blue: 0/255), label: "Temp. Broadleaf Deciduous"),
+                    LegendEntry(color: Color(red: 122/255, green: 174/255, blue: 0/255), label: "Mixed Forest"),
+                    LegendEntry(color: Color(red: 204/255, green: 204/255, blue: 0/255), label: "Trop. Shrubland"),
+                    LegendEntry(color: Color(red: 209/255, green: 170/255, blue: 61/255), label: "Temp. Shrubland"),
+                    LegendEntry(color: Color(red: 230/255, green: 230/255, blue: 130/255), label: "Trop. Grassland"),
+                    LegendEntry(color: Color(red: 220/255, green: 206/255, blue: 0/255), label: "Temp. Grassland"),
+                    LegendEntry(color: Color(red: 207/255, green: 117/255, blue: 148/255), label: "Wetland"),
+                    LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 0/255), label: "Cropland"),
+                    LegendEntry(color: Color(red: 200/255, green: 200/255, blue: 200/255), label: "Barren"),
+                    LegendEntry(color: Color(red: 255/255, green: 0/255, blue: 0/255), label: "Urban"),
+                    LegendEntry(color: Color(red: 0/255, green: 0/255, blue: 255/255), label: "Water"),
+                    LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 255/255), label: "Snow/Ice"),
+                ]
+            )
+
+        case .deAfricaCrop:
+            return CropMapLegendData(
+                title: "DE Africa Crop",
+                entries: [
+                    LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 0/255), label: "Cropland"),
+                ]
+            )
+
+        case .deaLandCover:
+            return CropMapLegendData(
+                title: "DEA Land Cover",
+                entries: [
+                    LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 0/255), label: "Cultivated"),
+                    LegendEntry(color: Color(red: 56/255, green: 168/255, blue: 0/255), label: "Natural Vegetation"),
+                    LegendEntry(color: Color(red: 0/255, green: 100/255, blue: 200/255), label: "Water"),
+                    LegendEntry(color: Color(red: 190/255, green: 190/255, blue: 190/255), label: "Bare"),
+                ]
+            )
+
+        case .mexicoMadmex:
+            return nil
+
+        case .turkeyCorine:
+            // CORINE simplified agricultural classes
+            return CropMapLegendData(
+                title: "CORINE Turkey",
+                entries: [
+                    LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 168/255), label: "Arable Land"),
+                    LegendEntry(color: Color(red: 242/255, green: 166/255, blue: 77/255), label: "Permanent Crops"),
+                    LegendEntry(color: Color(red: 230/255, green: 230/255, blue: 77/255), label: "Pastures"),
+                    LegendEntry(color: Color(red: 204/255, green: 242/255, blue: 77/255), label: "Agri/Natural"),
+                    LegendEntry(color: Color(red: 56/255, green: 168/255, blue: 0/255), label: "Forest"),
+                    LegendEntry(color: Color(red: 204/255, green: 204/255, blue: 204/255), label: "Bare/Sparse"),
+                    LegendEntry(color: Color(red: 0/255, green: 100/255, blue: 255/255), label: "Water"),
+                    LegendEntry(color: Color(red: 230/255, green: 0/255, blue: 0/255), label: "Artificial"),
+                ]
+            )
+
+        case .waporLCC:
+            return CropMapLegendData(
+                title: "WaPOR LCC",
+                entries: [
+                    LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 0/255), label: "Rainfed Cropland"),
+                    LegendEntry(color: Color(red: 0/255, green: 200/255, blue: 255/255), label: "Irrigated Cropland"),
+                    LegendEntry(color: Color(red: 56/255, green: 168/255, blue: 0/255), label: "Trees/Shrubs"),
+                    LegendEntry(color: Color(red: 200/255, green: 230/255, blue: 130/255), label: "Grassland"),
+                    LegendEntry(color: Color(red: 0/255, green: 0/255, blue: 200/255), label: "Water"),
+                    LegendEntry(color: Color(red: 190/255, green: 190/255, blue: 190/255), label: "Bare/Sparse"),
                 ]
             )
 

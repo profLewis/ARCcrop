@@ -1013,7 +1013,7 @@ struct MapContainerView: UIViewRepresentable {
                     options: [
                         .tileSize: NSNumber(value: 256),
                         .minimumZoomLevel: NSNumber(value: params.minZoom),
-                        .maximumZoomLevel: NSNumber(value: params.maxZoom)
+                        .maximumZoomLevel: NSNumber(value: params.effectiveMaxZoom)
                     ]
                 )
 

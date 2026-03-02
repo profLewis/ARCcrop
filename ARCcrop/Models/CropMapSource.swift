@@ -60,6 +60,19 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
     case abaresAustralia
     case lcdbNewZealand
     case geoIntaArgentina
+    // Non-European national (continued)
+    case modisLandCover(year: Int)
+    case gfsadCropland
+    case nalcms
+    case deAfricaCrop
+    case deaLandCover(year: Int)
+    case mexicoMadmex(year: Int)
+    case indiaBhuvan
+    case turkeyCorine
+    case indonesiaKlhk
+    case waporLCC
+    case walloniaAgriculture(year: Int)
+    case nibioNorway
     // Land use / land cover
     case esaWorldCover(year: Int)
     case gladCropland(year: Int)
@@ -101,6 +114,18 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .abaresAustralia: "abares_australia"
         case .lcdbNewZealand: "lcdb_newzealand"
         case .geoIntaArgentina: "geointa_argentina"
+        case .modisLandCover(let year): "modis_landcover_\(year)"
+        case .gfsadCropland: "gfsad_cropland"
+        case .nalcms: "nalcms"
+        case .deAfricaCrop: "deafrica_crop"
+        case .deaLandCover(let year): "dea_landcover_\(year)"
+        case .mexicoMadmex(let year): "mexico_madmex_\(year)"
+        case .indiaBhuvan: "india_bhuvan"
+        case .turkeyCorine: "turkey_corine"
+        case .indonesiaKlhk: "indonesia_klhk"
+        case .waporLCC: "wapor_lcc"
+        case .walloniaAgriculture(let year): "wallonia_\(year)"
+        case .nibioNorway: "nibio_norway"
         case .esaWorldCover(let year): "esa_worldcover_\(year)"
         case .gladCropland(let year): "glad_\(year)"
         case .dynamicWorld: "dynamic_world"
@@ -121,6 +146,10 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .jrcEUCropMap: "jrc_eucropmap"
         case .cromeEngland: "crome"
         case .aafcCanada: "aafc"
+        case .modisLandCover: "modis_landcover"
+        case .deaLandCover: "dea_landcover"
+        case .mexicoMadmex: "mexico_madmex"
+        case .walloniaAgriculture: "wallonia"
         case .esaWorldCover: "esa_worldcover"
         case .gladCropland: "glad"
         case .mapBiomas: "mapbiomas"
@@ -157,6 +186,18 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .abaresAustralia: "ABARES Australia"
         case .lcdbNewZealand: "LCDB New Zealand"
         case .geoIntaArgentina: "GeoINTA Argentina (2024)"
+        case .modisLandCover(let year): "MODIS Land Cover (\(year))"
+        case .gfsadCropland: "GFSAD Global Croplands (2000)"
+        case .nalcms: "NALCMS Land Cover (2020)"
+        case .deAfricaCrop: "DE Africa Cropland"
+        case .deaLandCover(let year): "DEA Land Cover (\(year))"
+        case .mexicoMadmex(let year): "Mexico MAD-Mex (\(year))"
+        case .indiaBhuvan: "India Bhuvan LULC"
+        case .turkeyCorine: "CORINE Turkey (2018)"
+        case .indonesiaKlhk: "Indonesia KLHK"
+        case .waporLCC: "WaPOR Land Cover"
+        case .walloniaAgriculture(let year): "Wallonia Agriculture (\(year))"
+        case .nibioNorway: "NIBIO AR5 Norway"
         case .esaWorldCover(let year): "ESA WorldCover (\(year))"
         case .gladCropland(let year): "GLAD Cropland (\(year))"
         case .dynamicWorld: "Esri 10m Land Cover (2023)"
@@ -199,6 +240,18 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .abaresAustralia: "WMS · Land Use · Australia"
         case .lcdbNewZealand: "WMS · Land Cover · New Zealand"
         case .geoIntaArgentina: "WMS · 30m · Argentina"
+        case .modisLandCover: "WMS · 500m · Global"
+        case .gfsadCropland: "WMS · 1km · Global"
+        case .nalcms: "WMS · 30m · N. America"
+        case .deAfricaCrop: "WMS · 10m · Africa"
+        case .deaLandCover: "WMS · 25m · Australia"
+        case .mexicoMadmex: "WMS · 30m · Mexico"
+        case .indiaBhuvan: "WMS · 56m · India"
+        case .turkeyCorine: "WMS · 100m · Turkey"
+        case .indonesiaKlhk: "WMS · 250k · Indonesia"
+        case .waporLCC: "WMS · 100m · Africa/ME"
+        case .walloniaAgriculture: "WMS · Parcels · Wallonia"
+        case .nibioNorway: "WMS · Land Type · Norway"
         case .esaWorldCover: "10m · Global"
         case .gladCropland: "30m · Global"
         case .dynamicWorld: "ArcGIS · 10m · Global"
@@ -241,6 +294,18 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .abaresAustralia: "ABARES Catchment Scale Land Use (CLUM). Simplified ALUM classification. Dept of Agriculture."
         case .lcdbNewZealand: "Land Cover Database v6 (2023/24). 33 classes. Manaaki Whenua / Landcare Research."
         case .geoIntaArgentina: "Mapa Nacional de Cultivos. 30m crop type from Landsat/Sentinel. INTA (summer campaign)."
+        case .modisLandCover: "NASA MODIS Combined L3 IGBP Land Cover Type. 500m annual global land cover. 17 classes."
+        case .gfsadCropland: "GFSAD Global Cropland Extent. 1km binary cropland mask from year 2000. USGS/NASA."
+        case .nalcms: "North American Land Change Monitoring System. 30m land cover for USA, Canada, Mexico. 19 classes. CEC/USGS/CONABIO."
+        case .deAfricaCrop: "Digital Earth Africa crop mask. 10m Sentinel-2 cropland extent for Africa."
+        case .deaLandCover: "Digital Earth Australia land cover. 25m Landsat-based annual classification. Geoscience Australia."
+        case .mexicoMadmex: "CONABIO MAD-Mex. 30m Landsat-8 land cover, 31 classes. National map of Mexico."
+        case .indiaBhuvan: "NRSC/ISRO Bhuvan LULC. 56m AWiFS-based land use/land cover at 1:250k. Multiple LULC classes."
+        case .turkeyCorine: "Copernicus CORINE Land Cover 2018. 100m. 44 land cover classes including agricultural types."
+        case .indonesiaKlhk: "KLHK Indonesia land cover. 1:250k. 23 classes incl. rice, dry agriculture, plantations."
+        case .waporLCC: "FAO WaPOR v2 Land Cover Classification. 100m annual. Irrigated/rainfed cropland distinction. Africa and Middle East."
+        case .walloniaAgriculture: "SIGEC anonymous agricultural parcels. SPW Wallonia open geodata."
+        case .nibioNorway: "NIBIO AR5 land resource map. Area type classification covering Norway. Norwegian Inst. of Bioeconomy Research."
         case .esaWorldCover: "ESA WorldCover. 10m global land cover from Sentinel-1 and Sentinel-2. 11 classes."
         case .gladCropland: "GLAD Global Cropland. 30m binary cropland extent from Landsat. University of Maryland."
         case .dynamicWorld: "Esri/Impact Observatory Sentinel-2 10m Land Cover. Annual 9-class LULC from Sentinel-2. Free via ArcGIS Living Atlas."
@@ -260,6 +325,9 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
              .gerkSlovenia, .arkodCroatia, .gsaaEstonia, .latviaFieldBlocks,
              .ifapPortugal, .lpisPoland, .jordbrukSweden, .flikLuxembourg, .blwSwitzerland,
              .abaresAustralia, .lcdbNewZealand, .geoIntaArgentina,
+             .modisLandCover, .gfsadCropland, .nalcms, .deAfricaCrop, .deaLandCover,
+             .mexicoMadmex, .indiaBhuvan, .turkeyCorine, .indonesiaKlhk, .waporLCC,
+             .walloniaAgriculture, .nibioNorway,
              .esaWorldCover, .gladCropland, .worldCereal,
              .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals,
              .mapBiomas, .dynamicWorld, .fromGLC, .copernicusLandCover:
@@ -281,6 +349,9 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
              .gerkSlovenia, .arkodCroatia, .gsaaEstonia, .latviaFieldBlocks,
              .ifapPortugal, .lpisPoland, .jordbrukSweden, .flikLuxembourg, .blwSwitzerland,
              .abaresAustralia, .lcdbNewZealand, .geoIntaArgentina,
+             .modisLandCover, .gfsadCropland, .nalcms, .deAfricaCrop, .deaLandCover,
+             .mexicoMadmex, .indiaBhuvan, .turkeyCorine, .indonesiaKlhk, .waporLCC,
+             .walloniaAgriculture, .nibioNorway,
              .esaWorldCover, .gladCropland, .worldCereal,
              .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals,
              .mapBiomas, .dynamicWorld, .fromGLC, .copernicusLandCover:
@@ -321,6 +392,18 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .abaresAustralia: 2023
         case .lcdbNewZealand: 2024
         case .geoIntaArgentina: 2024
+        case .modisLandCover(let y): y
+        case .gfsadCropland: 2000
+        case .nalcms: 2020
+        case .deAfricaCrop: 2021
+        case .deaLandCover(let y): y
+        case .mexicoMadmex(let y): y
+        case .indiaBhuvan: 2021
+        case .turkeyCorine: 2018
+        case .indonesiaKlhk: 2021
+        case .waporLCC: 2021
+        case .walloniaAgriculture(let y): y
+        case .nibioNorway: 2024
         case .esaWorldCover(let y): y
         case .gladCropland(let y): y
         case .dynamicWorld: 2023
@@ -337,11 +420,17 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
              .invekosAustria, .alvFlanders, .sigpacSpain, .fvmDenmark, .lpisCzechia,
              .gerkSlovenia, .arkodCroatia, .gsaaEstonia, .latviaFieldBlocks,
              .ifapPortugal, .lpisPoland, .jordbrukSweden, .flikLuxembourg, .blwSwitzerland,
-             .abaresAustralia, .lcdbNewZealand, .geoIntaArgentina: nil
+             .abaresAustralia, .lcdbNewZealand, .geoIntaArgentina,
+             .gfsadCropland, .nalcms, .deAfricaCrop, .indiaBhuvan, .turkeyCorine,
+             .indonesiaKlhk, .waporLCC, .nibioNorway: nil
         case .usdaCDL: 2008...2023
         case .jrcEUCropMap: 2018...2022
         case .cromeEngland: 2017...2024
         case .aafcCanada: 2009...2024
+        case .modisLandCover: 2020...2023
+        case .deaLandCover: 2018...2020
+        case .mexicoMadmex: 2017...2018
+        case .walloniaAgriculture: 2019...2023
         case .esaWorldCover: 2020...2021
         case .gladCropland: 2003...2020
         case .dynamicWorld: 2017...2023
@@ -381,6 +470,18 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .abaresAustralia: "ABARES Australia"
         case .lcdbNewZealand: "LCDB NZ"
         case .geoIntaArgentina: "GeoINTA Argentina"
+        case .modisLandCover: "MODIS LC"
+        case .gfsadCropland: "GFSAD"
+        case .nalcms: "NALCMS"
+        case .deAfricaCrop: "DE Africa Crop"
+        case .deaLandCover: "DEA Land Cover"
+        case .mexicoMadmex: "MAD-Mex Mexico"
+        case .indiaBhuvan: "Bhuvan India"
+        case .turkeyCorine: "CORINE Turkey"
+        case .indonesiaKlhk: "KLHK Indonesia"
+        case .waporLCC: "WaPOR LCC"
+        case .walloniaAgriculture: "Wallonia Agri"
+        case .nibioNorway: "NIBIO Norway"
         case .esaWorldCover: "ESA WorldCover"
         case .gladCropland: "GLAD Cropland"
         case .dynamicWorld: "Esri Land Cover"
@@ -422,6 +523,18 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .abaresAustralia: "ABARES"
         case .lcdbNewZealand: "MWLR"
         case .geoIntaArgentina: "INTA"
+        case .modisLandCover: "NASA/USGS"
+        case .gfsadCropland: "USGS/NASA"
+        case .nalcms: "CEC/USGS"
+        case .deAfricaCrop: "DE Africa"
+        case .deaLandCover: "GA/DEA"
+        case .mexicoMadmex: "CONABIO"
+        case .indiaBhuvan: "NRSC/ISRO"
+        case .turkeyCorine: "EEA/Copernicus"
+        case .indonesiaKlhk: "KLHK"
+        case .waporLCC: "FAO"
+        case .walloniaAgriculture: "SPW"
+        case .nibioNorway: "NIBIO"
         case .esaWorldCover: "ESA/Copernicus"
         case .gladCropland: "UMD/GLAD"
         case .dynamicWorld: "Esri/IO"
@@ -460,9 +573,19 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .abaresAustralia: (-26.0, 134.0, 40.0, 60.0)
         case .lcdbNewZealand: (-41.0, 173.0, 15.0, 17.0)
         case .geoIntaArgentina: (-32.0, -62.0, 20.0, 15.0)
+        case .nalcms: (49.0, -110.0, 70.0, 120.0)
+        case .deAfricaCrop: (1.5, 17.0, 73.0, 70.0)
+        case .deaLandCover: (-26.0, 134.0, 40.0, 60.0)
+        case .mexicoMadmex: (23.6, -102.6, 18.2, 31.8)
+        case .indiaBhuvan: (21.5, 82.8, 31.0, 29.5)
+        case .turkeyCorine: (39.0, 35.5, 6.0, 19.0)
+        case .indonesiaKlhk: (-2.5, 118.0, 17.0, 46.0)
+        case .waporLCC: (2.5, 18.5, 75.0, 73.0)
+        case .walloniaAgriculture: (50.2, 4.8, 2.0, 3.5)
+        case .nibioNorway: (65.0, 15.0, 20.0, 20.0)
         case .esaWorldCover, .gladCropland, .dynamicWorld, .worldCereal,
              .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals,
-             .copernicusLandCover, .fromGLC: nil
+             .copernicusLandCover, .fromGLC, .modisLandCover, .gfsadCropland: nil
         case .mapBiomas: (-15.0, -55.0, 40.0, 40.0)
         }
     }
@@ -503,12 +626,22 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
             .jordbrukSweden,
             .flikLuxembourg,
             .blwSwitzerland,
+            .walloniaAgriculture(year: 2023),
+            .nibioNorway,
             .abaresAustralia,
+            .deaLandCover(year: 2020),
             .lcdbNewZealand,
             .geoIntaArgentina,
+            .mexicoMadmex(year: 2018),
+            .indiaBhuvan,
+            .indonesiaKlhk,
+            .turkeyCorine,
             .usdaCDL(year: 2023),
             .aafcCanada(year: 2024),
+            .nalcms,
             .mapBiomas(year: 2020),
+            .deAfricaCrop,
+            .waporLCC,
             .jrcEUCropMap(year: 2022),
             .esaWorldCover(year: 2021),
             .geoglamMajorityCrop,
@@ -540,12 +673,22 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
             .jordbrukSweden,
             .flikLuxembourg,
             .blwSwitzerland,
+            .walloniaAgriculture(year: 2023),
+            .nibioNorway,
             .abaresAustralia,
+            .deaLandCover(year: 2020),
             .lcdbNewZealand,
             .geoIntaArgentina,
+            .mexicoMadmex(year: 2018),
+            .indiaBhuvan,
+            .indonesiaKlhk,
+            .turkeyCorine,
             .usdaCDL(year: 2023),
             .aafcCanada(year: 2024),
+            .nalcms,
             .mapBiomas(year: 2020),
+            .deAfricaCrop,
+            .waporLCC,
             .jrcEUCropMap(year: 2022),
             .esaWorldCover(year: 2021),
             .geoglamMajorityCrop,
@@ -563,6 +706,10 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case .jrcEUCropMap: .jrcEUCropMap(year: year)
         case .cromeEngland: .cromeEngland(year: year)
         case .aafcCanada: .aafcCanada(year: year)
+        case .modisLandCover: .modisLandCover(year: year)
+        case .deaLandCover: .deaLandCover(year: year)
+        case .mexicoMadmex: .mexicoMadmex(year: year)
+        case .walloniaAgriculture: .walloniaAgriculture(year: year)
         case .esaWorldCover: .esaWorldCover(year: year)
         case .gladCropland: .gladCropland(year: year)
         case .mapBiomas: .mapBiomas(year: year)
@@ -610,6 +757,14 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         case "abares_australia": return .abaresAustralia
         case "lcdb_newzealand": return .lcdbNewZealand
         case "geointa_argentina": return .geoIntaArgentina
+        case "gfsad_cropland": return .gfsadCropland
+        case "nalcms": return .nalcms
+        case "deafrica_crop": return .deAfricaCrop
+        case "india_bhuvan": return .indiaBhuvan
+        case "turkey_corine": return .turkeyCorine
+        case "indonesia_klhk": return .indonesiaKlhk
+        case "wapor_lcc": return .waporLCC
+        case "nibio_norway": return .nibioNorway
         default: break
         }
         if id.hasPrefix("geoglam_") {
@@ -625,6 +780,10 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
         if id.hasPrefix("esa_worldcover_"), let y = Int(id.dropFirst("esa_worldcover_".count)) { return .esaWorldCover(year: y) }
         if id.hasPrefix("glad_"), let y = Int(id.dropFirst("glad_".count)) { return .gladCropland(year: y) }
         if id.hasPrefix("mapbiomas_"), let y = Int(id.dropFirst("mapbiomas_".count)) { return .mapBiomas(year: y) }
+        if id.hasPrefix("modis_landcover_"), let y = Int(id.dropFirst("modis_landcover_".count)) { return .modisLandCover(year: y) }
+        if id.hasPrefix("dea_landcover_"), let y = Int(id.dropFirst("dea_landcover_".count)) { return .deaLandCover(year: y) }
+        if id.hasPrefix("mexico_madmex_"), let y = Int(id.dropFirst("mexico_madmex_".count)) { return .mexicoMadmex(year: y) }
+        if id.hasPrefix("wallonia_"), let y = Int(id.dropFirst("wallonia_".count)) { return .walloniaAgriculture(year: y) }
         return nil
     }
 
@@ -638,6 +797,10 @@ enum CropMapSource: Hashable, Identifiable, Sendable {
             .gerkSlovenia, .arkodCroatia, .gsaaEstonia, .latviaFieldBlocks,
             .ifapPortugal, .lpisPoland, .jordbrukSweden, .flikLuxembourg, .blwSwitzerland,
             .abaresAustralia, .lcdbNewZealand, .geoIntaArgentina,
+            .modisLandCover(year: 2023), .gfsadCropland, .nalcms,
+            .deAfricaCrop, .deaLandCover(year: 2020), .mexicoMadmex(year: 2018),
+            .indiaBhuvan, .turkeyCorine, .indonesiaKlhk, .waporLCC,
+            .walloniaAgriculture(year: 2023), .nibioNorway,
             .esaWorldCover(year: 2021), .gladCropland(year: 2020),
             .dynamicWorld, .worldCereal, .worldCerealMaize, .worldCerealWinterCereals, .worldCerealSpringCereals,
             .copernicusLandCover, .fromGLC, .mapBiomas(year: 2020),

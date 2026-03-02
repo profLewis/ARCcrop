@@ -76,6 +76,8 @@ struct CropMapPickerView: View {
                 }
                 sourceButton(.esaWorldCover(year: 2021), label: "ESA WorldCover (10m)", icon: "globe.europe.africa")
                 sourceButton(.dynamicWorld, label: "Esri Land Cover (10m)", icon: "globe")
+                sourceButton(.modisLandCover(year: 2023), label: "MODIS Land Cover (500m)", icon: "satellite.fill")
+                sourceButton(.gfsadCropland, label: "GFSAD Croplands (1km)", icon: "globe")
                 sourceButton(.copernicusLandCover, label: "Copernicus LC100 (100m)", icon: "satellite.fill")
                 sourceButton(.fromGLC, label: "GLAD Land Cover (30m)", icon: "square.grid.3x3.fill")
             }
@@ -84,12 +86,27 @@ struct CropMapPickerView: View {
             Section("North America") {
                 sourceButton(.usdaCDL(year: 2023), label: "\u{1F1FA}\u{1F1F8} USDA CDL", icon: "leaf.fill")
                 sourceButton(.aafcCanada(year: 2024), label: "\u{1F1E8}\u{1F1E6} AAFC Canada", icon: "leaf.fill")
+                sourceButton(.mexicoMadmex(year: 2018), label: "\u{1F1F2}\u{1F1FD} Mexico MAD-Mex", icon: "leaf.fill")
+                sourceButton(.nalcms, label: "\u{1F30E} NALCMS (30m)", icon: "globe.americas")
             }
 
             // MARK: - South America
             Section("South America") {
                 sourceButton(.mapBiomas(year: 2020), label: "\u{1F30E} MapBiomas", icon: "leaf.arrow.circlepath")
                 sourceButton(.geoIntaArgentina, label: "\u{1F1E6}\u{1F1F7} GeoINTA Argentina", icon: "leaf.fill")
+            }
+
+            // MARK: - Africa & Middle East
+            Section("Africa & Middle East") {
+                sourceButton(.deAfricaCrop, label: "\u{1F30D} DE Africa Cropland", icon: "leaf.fill")
+                sourceButton(.waporLCC, label: "\u{1F30D} WaPOR Land Cover", icon: "globe.europe.africa")
+            }
+
+            // MARK: - Asia
+            Section("Asia") {
+                sourceButton(.indiaBhuvan, label: "\u{1F1EE}\u{1F1F3} India Bhuvan LULC", icon: "leaf.fill")
+                sourceButton(.indonesiaKlhk, label: "\u{1F1EE}\u{1F1E9} Indonesia KLHK", icon: "leaf.fill")
+                sourceButton(.turkeyCorine, label: "\u{1F1F9}\u{1F1F7} Turkey CORINE", icon: "leaf.fill")
             }
 
             // MARK: - Europe — Crop Type Maps
@@ -117,11 +134,14 @@ struct CropMapPickerView: View {
                 sourceButton(.jordbrukSweden, label: "\u{1F1F8}\u{1F1EA} Jordbruk Sweden", icon: "leaf.fill")
                 sourceButton(.flikLuxembourg, label: "\u{1F1F1}\u{1F1FA} FLIK Luxembourg", icon: "leaf.fill")
                 sourceButton(.blwSwitzerland, label: "\u{1F1E8}\u{1F1ED} BLW Switzerland", icon: "leaf.fill")
+                sourceButton(.walloniaAgriculture(year: 2023), label: "\u{1F1E7}\u{1F1EA} Wallonia Agriculture", icon: "leaf.fill")
+                sourceButton(.nibioNorway, label: "\u{1F1F3}\u{1F1F4} NIBIO Norway", icon: "leaf.fill")
             }
 
             // MARK: - Oceania
             Section("Oceania") {
                 sourceButton(.abaresAustralia, label: "\u{1F1E6}\u{1F1FA} ABARES Australia", icon: "leaf.fill")
+                sourceButton(.deaLandCover(year: 2020), label: "\u{1F1E6}\u{1F1FA} DEA Land Cover", icon: "leaf.fill")
                 sourceButton(.lcdbNewZealand, label: "\u{1F1F3}\u{1F1FF} LCDB New Zealand", icon: "leaf.fill")
             }
         } label: {

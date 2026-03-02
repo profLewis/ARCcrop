@@ -11,6 +11,19 @@ struct WMSSourceParams {
     let maxZoom: Int
     /// Whether this source needs EPSG:4326 (server rejects 3857)
     let needs4326: Bool
+
+    /// The maximum zoom level MapLibre should use for the tile source.
+    /// For WMS sources the server renders any bbox on-the-fly, so we can
+    /// go higher than maxZoom without 404s. For XYZ tile sources we must
+    /// stay at maxZoom because tiles beyond that don't exist.
+    var effectiveMaxZoom: Int {
+        // XYZ tile sources use {z}/{y}/{x} — don't overshoot their maxZoom
+        if tileURLTemplate.contains("{z}") { return maxZoom }
+        // WMS/bbox sources: allow MapLibre to request tiles up to z18 or
+        // the source maxZoom, whichever is higher.  The server generates
+        // each tile on-the-fly at whatever bbox we send.
+        return max(maxZoom, 18)
+    }
 }
 
 // MARK: - WMS Tile URLProtocol
@@ -666,6 +679,106 @@ enum CropMapOverlayFactory {
                     baseURL: "http://azure.solved.eco.br:8080/geoserver/ows",
                     layers: "solved:mapbiomas"),
                 minZoom: 0, maxZoom: 14, needs4326: false)
+
+        case .modisLandCover(year: let year):
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi",
+                    layers: "MODIS_Combined_L3_IGBP_Land_Cover_Type_Annual",
+                    extraParams: "TIME=\(year)-01-01"),
+                minZoom: 0, maxZoom: 8, needs4326: false)
+
+        case .gfsadCropland:
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi",
+                    layers: "Agricultural_Lands_Croplands_2000"),
+                minZoom: 0, maxZoom: 8, needs4326: false)
+
+        case .nalcms:
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi",
+                    layers: "NALCMS_Land_Cover_2020"),
+                minZoom: 0, maxZoom: 10, needs4326: false)
+
+        case .deAfricaCrop:
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://ows.digitalearth.africa/wms",
+                    layers: "crop_mask",
+                    wmsVersion: "1.3.0"),
+                minZoom: 0, maxZoom: 10, needs4326: false)
+
+        case .deaLandCover(year: let year):
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://ows.dea.ga.gov.au/",
+                    layers: "ga_ls_landcover",
+                    extraParams: "TIME=\(year)-01-01"),
+                minZoom: 0, maxZoom: 12, needs4326: false)
+
+        case .mexicoMadmex(year: let year):
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "http://geonode.conabio.gob.mx/geoserver/ows",
+                    layers: "geonode:National_MAD-Mex_landsat8_lc_\(year)_31_classes"),
+                minZoom: 0, maxZoom: 12, needs4326: false)
+
+        case .indiaBhuvan:
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://bhuvan-ras2.nrsc.gov.in/cgi-bin/LULC250K.exe",
+                    layers: "LULC250K"),
+                minZoom: 0, maxZoom: 12, needs4326: false)
+
+        case .turkeyCorine:
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://image.discomap.eea.europa.eu/arcgis/services/Corine/CLC2018_WM/MapServer/WMSServer",
+                    layers: "12"),
+                minZoom: 0, maxZoom: 12, needs4326: false)
+
+        case .indonesiaKlhk:
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://geoportal.menlhk.go.id/server/services/dunekalks/PL_AR_250K/MapServer/WMSServer",
+                    layers: "0"),
+                minZoom: 0, maxZoom: 12, needs4326: false)
+
+        case .waporLCC:
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://io.apps.fao.org/geoserver/wms",
+                    layers: "WAPOR_2:L2_LCC_A"),
+                minZoom: 0, maxZoom: 10, needs4326: false)
+
+        case .walloniaAgriculture(year: let year):
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://geoservices.wallonie.be/arcgis/services/AGRICULTURE/SIGEC_PARC_AGRI_ANON__\(year)/MapServer/WMSServer",
+                    layers: "1",
+                    wmsVersion: "1.3.0"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
+
+        case .nibioNorway:
+            return WMSSourceParams(
+                identifier: source.id,
+                tileURLTemplate: wmsTemplate(
+                    baseURL: "https://wms.nibio.no/cgi-bin/ar5",
+                    layers: "Arealtype"),
+                minZoom: 0, maxZoom: 19, needs4326: false)
 
         case .dynamicWorld:
             // Esri/Impact Observatory Sentinel-2 10m Land Cover (free, no auth)
