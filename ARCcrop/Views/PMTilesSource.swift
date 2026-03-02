@@ -37,9 +37,7 @@ final class PMTilesURLProtocol: URLProtocol {
             return
         }
 
-        let tileID = PMTilesLocalArchive.zxyToTileID(z: z, x: x, y: y)
-
-        guard let tileData = archive.readTile(id: tileID) else {
+        guard let tileData = archive.readTileCorrected(z: z, x: x, y: y) else {
             returnEmpty()
             return
         }
@@ -61,7 +59,12 @@ final class PMTilesURLProtocol: URLProtocol {
     // MARK: - Static entry point (called from WMSTileURLProtocol)
 
     /// Serve a PMTiles tile on behalf of another URLProtocol instance.
-    static func serveTile(for request: URLRequest, client: URLProtocolClient?, protocol proto: URLProtocol) {
+    static func serveTile(
+        for request: URLRequest,
+        client: URLProtocolClient?,
+        protocol proto: URLProtocol,
+        filterColors: [(r: UInt8, g: UInt8, b: UInt8)] = []
+    ) {
         guard let url = request.url else {
             client?.urlProtocol(proto, didFailWithError: NSError(
                 domain: "PMTilesURLProtocol", code: -1,
@@ -86,14 +89,18 @@ final class PMTilesURLProtocol: URLProtocol {
             return
         }
 
-        let tileID = PMTilesLocalArchive.zxyToTileID(z: z, x: x, y: y)
-
-        let tileData: Data
-        if let data = archive.readTile(id: tileID) {
+        var tileData: Data
+        if let data = archive.readTileCorrected(z: z, x: x, y: y) {
             tileData = data
         } else {
             // Empty transparent PNG
             tileData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAABJRUFUeJxjYAAAAAMAAUbRyNIAAAAASUVORK5CYII=")!
+        }
+
+        // Apply pixel filtering for hidden legend classes
+        if !filterColors.isEmpty,
+           let filtered = WMSTileURLProtocol.filterPixels(tileData, hiding: filterColors) {
+            tileData = filtered
         }
 
         let headers: [String: String] = [
@@ -226,6 +233,12 @@ final class PMTilesLocalArchive {
             return Self.gunzip(raw) ?? raw
         }
         return raw
+    }
+
+    /// Read a tile by z/x/y coordinates.
+    func readTileCorrected(z: Int, x: Int, y: Int) -> Data? {
+        let tileID = Self.zxyToTileID(z: z, x: x, y: y)
+        return readTile(id: tileID)
     }
 
     private func findTile(id: UInt64, directory: Data? = nil, depth: Int = 0) -> (offset: UInt64, length: UInt64)? {

@@ -984,8 +984,18 @@ struct MapContainerView: UIViewRepresentable {
                 }
 
                 let tileURL: String
-                if params.needs4326 || !filterColors.isEmpty {
-                    // Route through URLProtocol proxy
+                let isPMTiles = params.tileURLTemplate.contains(PMTilesURLProtocol.proxyHost)
+                if isPMTiles {
+                    // PMTiles source — append filter as query param (applied in URLProtocol)
+                    if !filterColors.isEmpty {
+                        let filterParam = filterColors.map { "\($0.r),\($0.g),\($0.b)" }.joined(separator: "|")
+                        let sep = params.tileURLTemplate.contains("?") ? "&" : "?"
+                        tileURL = params.tileURLTemplate + "\(sep)filter=\(filterParam)"
+                    } else {
+                        tileURL = params.tileURLTemplate
+                    }
+                } else if params.needs4326 || !filterColors.isEmpty {
+                    // WMS source — route through URLProtocol proxy
                     let proxyTemplate = params.tileURLTemplate
                         .replacingOccurrences(of: "{bbox-epsg-3857}", with: "PROXY_BBOX")
                     tileURL = CropMapOverlayFactory.proxyURL(
@@ -994,7 +1004,6 @@ struct MapContainerView: UIViewRepresentable {
                         filterColors: filterColors)
                 } else {
                     // Direct URL — best performance, MapLibre caches natively
-                    // (includes PMTiles proxy URLs which use http:// with fake host)
                     tileURL = params.tileURLTemplate
                 }
 

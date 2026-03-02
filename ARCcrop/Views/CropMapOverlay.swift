@@ -54,7 +54,21 @@ final class WMSTileURLProtocol: URLProtocol, @unchecked Sendable {
 
         // Delegate to PMTilesURLProtocol for pmtiles requests
         if url.host == PMTilesURLProtocol.proxyHost {
-            PMTilesURLProtocol.serveTile(for: request, client: client, protocol: self)
+            // Parse filter colors from query params
+            var pmtilesFilterColors: [(r: UInt8, g: UInt8, b: UInt8)] = []
+            if let comps = URLComponents(url: url, resolvingAgainstBaseURL: false),
+               let filterParam = comps.queryItems?.first(where: { $0.name == "filter" })?.value {
+                for rgb in filterParam.split(separator: "|") {
+                    let parts = rgb.split(separator: ",")
+                    if parts.count == 3,
+                       let r = UInt8(parts[0]), let g = UInt8(parts[1]), let b = UInt8(parts[2]) {
+                        pmtilesFilterColors.append((r: r, g: g, b: b))
+                    }
+                }
+            }
+            PMTilesURLProtocol.serveTile(
+                for: request, client: client, protocol: self,
+                filterColors: pmtilesFilterColors)
             return
         }
 
@@ -288,7 +302,7 @@ final class WMSTileURLProtocol: URLProtocol, @unchecked Sendable {
 
     // MARK: Per-pixel filtering
 
-    private static func filterPixels(_ pngData: Data, hiding colors: [(r: UInt8, g: UInt8, b: UInt8)]) -> Data? {
+    static func filterPixels(_ pngData: Data, hiding colors: [(r: UInt8, g: UInt8, b: UInt8)]) -> Data? {
         guard let image = UIImage(data: pngData), let cgImage = image.cgImage else { return nil }
         let w = cgImage.width, h = cgImage.height
         let srgb = CGColorSpace(name: CGColorSpace.sRGB)!
@@ -377,8 +391,8 @@ enum CropMapOverlayFactory {
         case .usdaCDL(year: let year):
             return WMSSourceParams(
                 identifier: source.id,
-                tileURLTemplate: "http://\(PMTilesURLProtocol.proxyHost)/{z}/{x}/{y}/usda_cdl_\(year).pmtiles",
-                minZoom: 4, maxZoom: 8, needs4326: false)
+                tileURLTemplate: "http://\(PMTilesURLProtocol.proxyHost)/{z}/{x}/{y}/usda_cdl_\(year).pmtiles?v=7",
+                minZoom: 0, maxZoom: 8, needs4326: false)
 
         case .jrcEUCropMap(year: let year):
             return WMSSourceParams(
