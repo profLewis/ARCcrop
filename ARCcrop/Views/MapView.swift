@@ -615,12 +615,17 @@ struct LayerOpacityControl: View {
 // MARK: - MapLibre network delegate (injects URLProtocol into MapLibre's session)
 
 final class MapLibreNetworkDelegate: NSObject, MLNNetworkConfigurationDelegate {
-    func session(for configuration: MLNNetworkConfiguration) -> URLSession {
+    /// Single shared session — avoids creating (and leaking) a new URLSession+cache on every call.
+    private let sharedSession: URLSession = {
         let config = URLSessionConfiguration.default
         config.protocolClasses = [WMSTileURLProtocol.self, PMTilesURLProtocol.self] + (config.protocolClasses ?? [])
         config.urlCache = URLCache(memoryCapacity: 128 * 1024 * 1024, diskCapacity: 1024 * 1024 * 1024)
         config.requestCachePolicy = .returnCacheDataElseLoad
         return URLSession(configuration: config)
+    }()
+
+    func session(for configuration: MLNNetworkConfiguration) -> URLSession {
+        sharedSession
     }
 }
 
@@ -693,7 +698,10 @@ struct MapContainerView: UIViewRepresentable {
         let json = """
         {"version":8,"sources":{\(sources)},"layers":[\(layers)]}
         """
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("arccrop_style.json")
+        // Use a unique filename per write to prevent races when MapLibre reads the old file
+        // while we overwrite it for a new style reload.
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("arccrop_style_\(UInt32.random(in: 0...UInt32.max)).json")
         try? json.data(using: .utf8)?.write(to: url)
         return url
     }
@@ -797,6 +805,8 @@ struct MapContainerView: UIViewRepresentable {
             coord.showingFieldBoundaries = showFieldBoundaries
             coord.showingPoliticalBoundaries = showPoliticalBoundaries
             coord.showingFTWBoundaries = showFTWBoundaries
+            coord.styleGeneration += 1
+            coord.expectedGeneration = coord.styleGeneration
             coord.styleLoaded = false
             mapView.styleURL = Self.writeStyleJSON(mapStyle: mapStyle)
             return
@@ -845,13 +855,22 @@ struct MapContainerView: UIViewRepresentable {
             if !geoglamUpdated {
                 // Full style reload needed (WMS sources need new filter URL)
                 coord.currentHidden = hiddenClasses
+                coord.styleGeneration += 1
+                let gen = coord.styleGeneration
                 coord.styleLoaded = false
                 ActivityLog.shared.resetTileProgress()
-                mapView.styleURL = Self.writeStyleJSON(mapStyle: mapStyle)
+
+                ObjCTryCatch({ coord.removeAllDataLayers(style: style) }, nil)
+
+                coord.expectedGeneration = gen
+                DispatchQueue.main.async {
+                    guard coord.styleGeneration == gen else { return }
+                    mapView.styleURL = Self.writeStyleJSON(mapStyle: mapStyle)
+                }
             }
         }
 
-        // Data sources changed — full style reload to avoid MapLibre internal state issues
+        // Data sources changed — clean up old layers, then deferred style reload
         if sourcesChanged {
             let oldIDs = Set(coord.currentSources.map(\.id))
             let newIDs = Set(activeCropMaps.map(\.id))
@@ -863,9 +882,21 @@ struct MapContainerView: UIViewRepresentable {
             coord.hasAutoSwitched = false
             ActivityLog.shared.resetTileProgress()
 
-            // Reload the entire style — didFinishLoading will call addDataLayers fresh
+            // Step 1: Mark style as stale and bump generation
+            coord.styleGeneration += 1
+            let gen = coord.styleGeneration
             coord.styleLoaded = false
-            mapView.styleURL = Self.writeStyleJSON(mapStyle: mapStyle)
+
+            // Step 2: Remove old data layers/sources to cancel in-flight tile requests
+            ObjCTryCatch({ coord.removeAllDataLayers(style: style) }, nil)
+
+            // Step 3: Defer style reload to next runloop — gives MapLibre time
+            // to clean up torn-down sources before loading the new style.
+            coord.expectedGeneration = gen
+            DispatchQueue.main.async {
+                guard coord.styleGeneration == gen else { return }
+                mapView.styleURL = Self.writeStyleJSON(mapStyle: mapStyle)
+            }
 
             // Zoom to coverage of newly added source
             if let addedSource = activeCropMaps.last, addedIDs.contains(addedSource.id),
@@ -906,11 +937,18 @@ struct MapContainerView: UIViewRepresentable {
         var showingFTWBoundaries = false
         var hasAutoSwitched = false
         var styleLoaded = false
+        /// Incremented each time a style reload is triggered; prevents stale didFinishLoading from adding layers.
+        var styleGeneration: UInt = 0
         weak var mapView: MLNMapView?
 
         // MARK: Style loaded
 
+        /// Generation captured when the most recent style reload was triggered.
+        var expectedGeneration: UInt = 0
+
         func mapView(_ mapView: MLNMapView, didFinishLoading style: MLNStyle) {
+            // Ignore stale callback if another reload was triggered after this one
+            guard styleGeneration == expectedGeneration else { return }
             styleLoaded = true
             addDataLayers(style: style)
             syncReferenceOverlays(style: style)
@@ -939,6 +977,7 @@ struct MapContainerView: UIViewRepresentable {
         }
 
         func addDataLayers(style: MLNStyle) {
+            guard styleLoaded else { return }  // Style was replaced before we could add layers
             for source in currentSources {
                 let sourceId = "src-\(source.id)"
                 let layerId = "data-\(source.id)"
