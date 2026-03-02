@@ -65,6 +65,21 @@ struct SettingsView: View {
                         // Trigger refresh
                         NotificationCenter.default.post(name: .cacheSizeChanged, object: nil)
                     }
+                    Button("Clear Cache & Remove All Layers") {
+                        MLNOfflineStorage.shared.resetDatabase { error in
+                            if let error {
+                                ActivityLog.shared.error("Cache clear failed: \(error.localizedDescription)")
+                            } else {
+                                ActivityLog.shared.success("Cache cleared & all layers removed")
+                            }
+                        }
+                        URLCache.shared.removeAllCachedResponses()
+                        settings.activeCropMaps = []
+                        settings.layerOpacity = [:]
+                        settings.focusedLayerIndex = 0
+                        NotificationCenter.default.post(name: .cacheSizeChanged, object: nil)
+                    }
+                    .foregroundStyle(.red)
                 }
                 #endif
 
