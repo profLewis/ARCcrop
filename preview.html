@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARCcrop — Dataset Preview</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/pmtiles@3.0.6/dist/pmtiles.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; height: 100vh; }
+
+/* Sidebar */
+#sidebar {
+  width: 300px; min-width: 300px; overflow-y: auto; background: #1a1a2e; color: #e0e0e0;
+  padding: 12px; font-size: 13px; display: flex; flex-direction: column;
+}
+#sidebar h1 { font-size: 16px; margin-bottom: 8px; color: #fff; }
+#sidebar input[type=text] {
+  width: 100%; padding: 6px 10px; margin-bottom: 10px; border: 1px solid #333;
+  border-radius: 6px; background: #16213e; color: #e0e0e0; font-size: 13px; outline: none;
+}
+#dataset-list { flex: 1; overflow-y: auto; }
+.section-title {
+  font-size: 11px; font-weight: 700; color: #8888aa; text-transform: uppercase;
+  letter-spacing: 0.5px; margin: 10px 0 4px; padding-top: 6px; border-top: 1px solid #2a2a4a;
+}
+.ds-btn {
+  display: block; width: 100%; text-align: left; padding: 6px 10px; margin: 2px 0;
+  border: none; border-radius: 6px; cursor: pointer; font-size: 12px;
+  background: transparent; color: #ccc; transition: all 0.15s;
+}
+.ds-btn:hover { background: #16213e; color: #fff; }
+.ds-btn.active { background: #0f3460; color: #4cc9f0; font-weight: 600; }
+.ds-btn .sub { display: block; font-size: 10px; color: #777; margin-top: 1px; }
+.ds-btn.active .sub { color: #4cc9f0aa; }
+.ds-btn.broken { opacity: 0.4; }
+.ds-btn.broken::after { content: " (down)"; color: #f44; font-size: 10px; }
+
+/* Map area */
+#map-container { flex: 1; position: relative; }
+#map { width: 100%; height: 100%; }
+
+/* Diagnostics bar */
+#diag {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
+  background: rgba(0,0,0,0.85); color: #ccc; padding: 6px 14px;
+  font-size: 11px; font-family: 'SF Mono', 'Menlo', monospace;
+  display: flex; gap: 20px; align-items: center;
+}
+#diag .label { color: #888; }
+#diag .val { color: #4cc9f0; font-weight: 600; }
+#diag .warn { color: #f90; }
+
+/* Info panel */
+#info {
+  position: absolute; top: 40px; right: 10px; z-index: 1000;
+  background: rgba(0,0,0,0.8); color: #fff; padding: 10px 14px; border-radius: 8px;
+  font-size: 12px; max-width: 350px; pointer-events: none;
+}
+#info .title { font-weight: 700; font-size: 14px; }
+#info .detail { color: #aaa; margin-top: 4px; }
+
+/* Year control */
+#year-ctrl {
+  position: absolute; top: 40px; left: 10px; z-index: 1000;
+  background: rgba(0,0,0,0.85); color: #fff; padding: 8px 14px; border-radius: 8px;
+  font-size: 13px; display: none; align-items: center; gap: 8px;
+}
+#year-ctrl button {
+  background: #0f3460; color: #4cc9f0; border: none; border-radius: 4px;
+  width: 28px; height: 28px; font-size: 16px; cursor: pointer; font-weight: 700;
+}
+#year-ctrl button:hover { background: #1a5276; }
+#year-ctrl .year-val { font-weight: 700; font-size: 15px; min-width: 40px; text-align: center; }
+#year-ctrl input[type=range] { width: 120px; }
+
+/* Map controls */
+#map-ctrl {
+  position: absolute; bottom: 30px; right: 10px; z-index: 1000;
+  background: rgba(0,0,0,0.85); color: #fff; padding: 10px 14px; border-radius: 8px;
+  font-size: 12px; display: flex; flex-direction: column; gap: 6px;
+}
+.ctrl-row { display: flex; align-items: center; gap: 8px; }
+.ctrl-label { color: #888; font-size: 11px; min-width: 52px; }
+#map-ctrl select {
+  background: #222; color: #e0e0e0; border: 1px solid #444; border-radius: 4px;
+  padding: 3px 6px; font-size: 12px; outline: none; cursor: pointer;
+}
+#map-ctrl select:hover { border-color: #4cc9f0; }
+#map-ctrl input[type=range] { width: 110px; }
+#opacity-val { font-size: 11px; color: #aaa; min-width: 28px; }
+
+/* Legend panel */
+#legend {
+  position: absolute; bottom: 60px; left: 10px; z-index: 1000;
+  background: rgba(0,0,0,0.88); color: #fff; padding: 10px 12px; border-radius: 8px;
+  font-size: 12px; max-height: 60vh; overflow-y: auto; min-width: 180px; display: none;
+}
+#legend .legend-title {
+  font-weight: 700; font-size: 12px; margin-bottom: 6px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+#legend .legend-btns { display: flex; gap: 4px; }
+#legend .legend-btns button {
+  background: #333; color: #aaa; border: none; border-radius: 3px;
+  padding: 2px 6px; font-size: 10px; cursor: pointer;
+}
+#legend .legend-btns button:hover { background: #555; color: #fff; }
+.legend-entry {
+  display: flex; align-items: center; gap: 6px; padding: 2px 0; cursor: pointer;
+  transition: opacity 0.15s;
+}
+.legend-entry:hover { background: rgba(255,255,255,0.05); }
+.legend-entry.hidden { opacity: 0.3; }
+.legend-entry.hidden .legend-label { text-decoration: line-through; }
+.legend-swatch {
+  width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.legend-label { font-size: 11px; }
+#legend .no-legend { color: #888; font-style: italic; font-size: 11px; }
+</style>
+</head>
+<body>
+<div id="sidebar">
+  <h1>ARCcrop Datasets</h1>
+  <input type="text" id="search" placeholder="Search datasets...">
+  <div id="dataset-list"></div>
+</div>
+<div id="map-container">
+  <div id="map"></div>
+  <div id="diag">
+    <span><span class="label">Source: </span><span class="val" id="d-src">—</span></span>
+    <span><span class="label">Zoom: </span><span class="val" id="d-zoom">3</span></span>
+    <span><span class="label">Scale: </span><span class="val" id="d-scale">—</span></span>
+    <span><span class="label">Resolution: </span><span class="val" id="d-res">—</span></span>
+    <span><span class="label">Tiles: </span><span class="val" id="d-tiles">—</span></span>
+  </div>
+  <div id="info"></div>
+  <div id="year-ctrl">
+    <button id="year-prev">&#9664;</button>
+    <span class="year-val" id="year-val"></span>
+    <input type="range" id="year-slider">
+    <button id="year-next">&#9654;</button>
+  </div>
+  <div id="legend"></div>
+  <iframe id="external-viewer" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;z-index:500;border:none;"></iframe>
+  <div id="map-ctrl">
+    <div class="ctrl-row">
+      <span class="ctrl-label">Base map</span>
+      <select id="basemap-select">
+        <option value="satellite">Satellite</option>
+        <option value="streets">Streets</option>
+        <option value="topo">Topographic</option>
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+        <option value="osm">OpenStreetMap</option>
+      </select>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Overlay</span>
+      <input type="range" id="opacity" min="0" max="100" value="70">
+      <span id="opacity-val">70%</span>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ MAP SETUP ============
+const map = L.map('map', { zoomControl: true }).setView([30, 0], 3);
+
+const basemaps = {
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri', maxZoom: 19 }),
+  streets: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM', maxZoom: 19 }),
+  topo: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri', maxZoom: 19 }),
+  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: 'CARTO', maxZoom: 19 }),
+  light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: 'CARTO', maxZoom: 19 }),
+  osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM', maxZoom: 19 }),
+};
+let currentBasemap = basemaps.satellite;
+currentBasemap.addTo(map);
+
+L.control.scale({ metric: true, imperial: true, maxWidth: 200 }).addTo(map);
+
+document.getElementById('basemap-select').onchange = function() {
+  map.removeLayer(currentBasemap);
+  currentBasemap = basemaps[this.value];
+  currentBasemap.addTo(map);
+  // Keep basemap below overlay
+  if (currentLayer) currentLayer.bringToFront();
+};
+
+let currentLayer = null;
+let currentDS = null;
+let currentDSObj = null;
+let currentYear = null;
+let hiddenClasses = new Set();
+let tileCount = 0;
+
+// ============ LEGENDS ============
+const legends = {
+  cdl: [
+    {l:"Corn",r:255,g:212,b:0},{l:"Soybeans",r:38,g:115,b:0},{l:"Winter Wheat",r:168,g:112,b:0},
+    {l:"Spring Wheat",r:217,g:181,b:108},{l:"Rice",r:0,g:169,b:230},{l:"Cotton",r:255,g:38,b:38},
+    {l:"Sorghum",r:255,g:158,b:15},{l:"Sunflower",r:255,g:255,b:0},{l:"Peanuts",r:112,g:168,b:0},
+    {l:"Tobacco/Other",r:0,g:175,b:77},{l:"Canola",r:209,g:255,b:0},{l:"Barley",r:226,g:0,b:127},
+    {l:"Rye",r:174,g:1,b:126},{l:"Oats",r:161,g:88,b:137},{l:"Millet",r:115,g:0,b:76},
+    {l:"Other Grains",r:214,g:157,b:188},{l:"Dbl Crop Wht/Soy",r:115,g:115,b:0},
+    {l:"Alfalfa",r:255,g:168,b:227},{l:"Other Hay",r:165,g:245,b:141},{l:"Clover",r:232,g:190,b:255},
+    {l:"Sod/Grass Seed",r:178,g:255,b:222},{l:"Dry Beans",r:168,g:0,b:0},{l:"Peas",r:85,g:255,b:0},
+    {l:"Mint/Herbs",r:128,g:212,b:255},{l:"Vegs & Fruits",r:255,g:102,b:102},
+    {l:"Pecans",r:182,g:112,b:92},{l:"Grass/Pasture",r:233,g:255,b:190},
+    {l:"Fallow/Idle",r:191,g:191,b:122},{l:"Forest",r:149,g:206,b:147},
+    {l:"Shrubland",r:199,g:215,b:158},{l:"Barren",r:204,g:191,b:163},
+    {l:"Water",r:77,g:112,b:163},{l:"Wetlands",r:128,g:179,b:179},{l:"Developed",r:156,g:156,b:156}
+  ],
+  jrc: [
+    {l:"Common Wheat",r:165,g:112,b:0},{l:"Durum Wheat",r:137,g:96,b:84},{l:"Barley",r:226,g:0,b:124},
+    {l:"Rye",r:170,g:0,b:124},{l:"Oats",r:160,g:89,b:137},{l:"Maize",r:255,g:211,b:0},
+    {l:"Rice",r:0,g:168,b:226},{l:"Triticale",r:214,g:158,b:188},{l:"Potatoes",r:221,g:165,b:10},
+    {l:"Sugar Beet",r:168,g:0,b:226},{l:"Other Crops",r:0,g:175,b:73},{l:"Sunflower",r:255,g:255,b:0},
+    {l:"Rapeseed",r:209,g:255,b:0},{l:"Soya",r:38,g:112,b:0},{l:"Dry Pulses",r:242,g:163,b:119},
+    {l:"Fodder Crops",r:232,g:191,b:255},{l:"Bare Arable",r:105,g:105,b:105},
+    {l:"Woodland",r:147,g:204,b:147},{l:"Grasslands",r:232,g:255,b:191},
+    {l:"Bare Land",r:168,g:158,b:127},{l:"Water",r:7,g:147,b:222},{l:"Wetlands",r:124,g:175,b:175}
+  ],
+  crome: [
+    {l:"Winter Wheat",r:165,g:112,b:0},{l:"Barley",r:218,g:227,b:27},{l:"Oats",r:161,g:89,b:137},
+    {l:"Oilseed Rape",r:255,g:255,b:0},{l:"Maize",r:255,g:211,b:0},{l:"Potatoes",r:112,g:38,b:1},
+    {l:"Sugar Beet",r:111,g:85,b:202},{l:"Field Beans",r:130,g:101,b:73},{l:"Peas",r:84,g:255,b:0},
+    {l:"Grass",r:233,g:255,b:191},{l:"Fallow",r:191,g:191,b:191}
+  ],
+  dlr: [
+    {l:"Winter Wheat",r:0,g:112,b:255},{l:"Winter Barley",r:115,g:223,b:255},
+    {l:"Winter Rye",r:115,g:178,b:255},{l:"Rapeseed",r:255,g:255,b:115},
+    {l:"Spring Barley",r:230,g:152,b:0},{l:"Spring Oats",r:255,g:170,b:0},
+    {l:"Maize",r:230,g:0,b:169},{l:"Sugar Beet",r:132,g:0,b:168},
+    {l:"Potatoes",r:168,g:112,b:0},{l:"Permanent Grass",r:112,g:168,b:0}
+  ],
+  rpg: [
+    {l:"Cereals",r:217,g:166,b:33},{l:"Oilseeds",r:204,g:186,b:0},{l:"Protein Crops",r:51,g:153,b:51},
+    {l:"Vineyards",r:128,g:0,b:128},{l:"Orchards",r:0,g:128,b:0},{l:"Grassland",r:153,g:204,b:51}
+  ],
+  brp: [
+    {l:"Bouwland (Arable)",r:255,g:255,b:190},{l:"Grasland (Grassland)",r:163,g:255,b:115},
+    {l:"Overige (Other)",r:56,g:168,b:0},{l:"Landschap (Landscape)",r:215,g:194,b:158}
+  ],
+  aafc: [
+    {l:"Water",r:51,g:51,b:255},{l:"Exposed Land",r:153,g:102,b:102},{l:"Urban",r:204,g:102,b:153},
+    {l:"Shrubland",r:255,g:255,b:0},{l:"Wetland",r:153,g:51,b:153},{l:"Grassland",r:204,g:204,b:0},
+    {l:"Agriculture",r:204,g:102,b:0},{l:"Pasture/Forages",r:255,g:204,b:51},
+    {l:"Fallow",r:255,g:153,b:0},{l:"Wheat",r:167,g:179,b:77},{l:"Barley",r:218,g:227,b:29},
+    {l:"Oats",r:209,g:213,b:43},{l:"Corn",r:255,g:255,b:153},{l:"Canola",r:214,g:255,b:112},
+    {l:"Soybeans",r:204,g:153,b:51},{l:"Peas",r:143,g:108,b:61},{l:"Lentils",r:184,g:89,b:0},
+    {l:"Potatoes",r:255,g:204,b:204},{l:"Sugarbeets",r:111,g:85,b:202},
+    {l:"Other Crops",r:116,g:154,b:102},{l:"Forest",r:0,g:153,b:0}
+  ],
+  esa: [
+    {l:"Tree Cover",r:0,g:100,b:0},{l:"Shrubland",r:255,g:187,b:34},{l:"Grassland",r:255,g:255,b:76},
+    {l:"Cropland",r:240,g:150,b:255},{l:"Built-up",r:250,g:0,b:0},{l:"Bare/Sparse",r:180,g:180,b:180},
+    {l:"Water",r:0,g:100,b:200},{l:"Wetland",r:0,g:150,b:160},{l:"Mangroves",r:0,g:207,b:117},
+    {l:"Moss/Lichen",r:250,g:230,b:160}
+  ],
+  modis: [
+    {l:"Evergreen Needleleaf",r:5,g:100,b:35},{l:"Evergreen Broadleaf",r:0,g:160,b:0},
+    {l:"Deciduous Needleleaf",r:170,g:200,b:0},{l:"Deciduous Broadleaf",r:0,g:220,b:130},
+    {l:"Mixed Forest",r:76,g:115,b:0},{l:"Closed Shrublands",r:255,g:180,b:50},
+    {l:"Open Shrublands",r:255,g:235,b:175},{l:"Woody Savannas",r:0,g:210,b:0},
+    {l:"Savannas",r:255,g:255,b:100},{l:"Grasslands",r:220,g:240,b:100},
+    {l:"Wetlands",r:0,g:170,b:230},{l:"Croplands",r:255,g:190,b:255},{l:"Urban",r:255,g:0,b:0},
+    {l:"Cropland/Natural",r:255,g:210,b:120},{l:"Water",r:0,g:0,b:200},
+    {l:"Snow/Ice",r:255,g:255,b:255},{l:"Barren",r:200,g:200,b:200}
+  ],
+  gfsad: [
+    {l:"< 20% Cropland",r:254,g:244,b:221},{l:"20-40%",r:254,g:220,b:180},
+    {l:"40-60%",r:240,g:160,b:100},{l:"60-80%",r:220,g:100,b:20},{l:"> 80% Cropland",r:180,g:60,b:0}
+  ],
+  corine: [
+    {l:"Arable Land",r:255,g:255,b:168},{l:"Permanent Crops",r:242,g:166,b:77},
+    {l:"Pastures",r:230,g:230,b:77},{l:"Agri/Natural",r:204,g:242,b:77},
+    {l:"Forest",r:56,g:168,b:0},{l:"Bare/Sparse",r:204,g:204,b:204},
+    {l:"Water",r:0,g:100,b:255},{l:"Artificial",r:230,g:0,b:0}
+  ],
+  abares: [
+    {l:"Nature Conservation",r:150,g:102,b:204},{l:"Managed Resource",r:201,g:190,b:255},
+    {l:"Other Minimal Use",r:222,g:135,b:221},{l:"Grazing Native Veg",r:255,g:255,b:229},
+    {l:"Production Native Forest",r:41,g:137,b:68},{l:"Plantation Forests",r:173,g:255,b:181},
+    {l:"Grazing Mod. Pastures",r:255,g:211,b:127},{l:"Dryland Cropping",r:255,g:255,b:0},
+    {l:"Dryland Horticulture",r:171,g:135,b:120},{l:"Land in Transition",r:0,g:0,b:0},
+    {l:"Irrigated Pastures",r:255,g:170,b:0},{l:"Irrigated Cropping",r:201,g:184,b:84},
+    {l:"Irrigated Horticulture",r:156,g:84,b:46},{l:"Intensive Hort/Animal",r:255,g:201,b:190},
+    {l:"Other Intensive",r:155,g:0,b:0},{l:"Urban Residential",r:255,g:0,b:0},
+    {l:"Rural Residential",r:178,g:178,b:178},{l:"Mining/Waste",r:71,g:130,b:143},
+    {l:"Water",r:0,g:0,b:255}
+  ],
+  nz: [
+    {l:"Indigenous Forest",r:0,g:80,b:0},{l:"Exotic Forest",r:0,g:140,b:0},
+    {l:"High Prod. Grassland",r:120,g:200,b:0},{l:"Low Prod. Grassland",r:180,g:200,b:80},
+    {l:"Cropland",r:255,g:230,b:0},{l:"Orchard/Vineyard",r:255,g:170,b:0},
+    {l:"Tussock",r:200,g:200,b:80},{l:"Built-up",r:255,g:0,b:0},
+    {l:"Water",r:0,g:100,b:200},{l:"Wetland",r:0,g:170,b:170},{l:"Bare/Gravel",r:200,g:200,b:200}
+  ],
+  fvm: [
+    {l:"Vinterhvede (W.Wheat)",r:128,g:177,b:211},{l:"Vårbyg (Sp.Barley)",r:188,g:128,b:189},
+    {l:"Vinterraps (Rapeseed)",r:253,g:180,b:98},{l:"Majs (Maize)",r:255,g:255,b:179},
+    {l:"Vinterbyg (W.Barley)",r:252,g:205,b:229},{l:"Vinterrug (W.Rye)",r:190,g:186,b:218},
+    {l:"Kartoffel (Potato)",r:141,g:211,b:199},{l:"Græs (Grass)",r:179,g:222,b:105},
+    {l:"Andet (Other)",r:251,g:128,b:114},{l:"Ikke Omdrift (Perm.)",r:217,g:217,b:217}
+  ],
+  wallonia: [
+    {l:"Fodder (Fourragère)",r:197,g:255,b:140},{l:"Cereals (Céréales)",r:255,g:226,b:140},
+    {l:"Oilseeds (Oléagineux)",r:209,g:209,b:118},{l:"Horticulture",r:255,g:255,b:26},
+    {l:"Nuts (Fruits à coque)",r:255,g:140,b:255},{l:"Fibre Plants",r:140,g:255,b:255},
+    {l:"Potatoes (P. de terre)",r:255,g:198,b:140},{l:"Other Uses (Autres)",r:210,g:179,b:118}
+  ],
+  nibio: [
+    {l:"Fulldyrka jord",r:255,g:255,b:0},{l:"Overflatedyrka jord",r:255,g:200,b:0},
+    {l:"Innmarksbeite",r:180,g:255,b:0},{l:"Skog (Forest)",r:0,g:140,b:0},
+    {l:"Åpen mark (Open)",r:200,g:200,b:200},{l:"Vann (Water)",r:0,g:100,b:200},
+    {l:"Myr (Wetland)",r:0,g:180,b:180},{l:"Bebygd (Built-up)",r:255,g:0,b:0}
+  ],
+  fromglc: [
+    {l:"Dense Forest",r:0,g:100,b:0},{l:"Open Forest",r:100,g:180,b:0},
+    {l:"Grassland",r:200,g:220,b:100},{l:"Cropland",r:255,g:200,b:50},
+    {l:"Built-up",r:250,g:0,b:0},{l:"Water",r:0,g:100,b:200},
+    {l:"Bare",r:180,g:180,b:180},{l:"Snow/Ice",r:255,g:255,b:255}
+  ],
+  worldcereal: [{l:"Temporary Crops",r:224,g:24,b:28}],
+  deafrica: [{l:"Cropland",r:255,g:255,b:0}],
+  dea: [
+    {l:"Cultivated",r:255,g:255,b:0},{l:"Natural Vegetation",r:56,g:168,b:0},
+    {l:"Water",r:0,g:100,b:200},{l:"Bare",r:190,g:190,b:190}
+  ],
+  copernicus: [
+    {l:"Closed Forest",r:0,g:60,b:0},{l:"Open Forest",r:0,g:160,b:0},
+    {l:"Shrubs",r:255,g:187,b:34},{l:"Herbaceous",r:255,g:255,b:76},
+    {l:"Cropland",r:246,g:141,b:210},{l:"Built-up",r:250,g:0,b:0},
+    {l:"Bare/Sparse",r:180,g:180,b:180},{l:"Water",r:0,g:100,b:200},
+    {l:"Wetland",r:0,g:150,b:160},{l:"Moss/Lichen",r:250,g:230,b:160}
+  ],
+  glad: [
+    {l:"Cropland",r:255,g:209,b:0},{l:"Non-Cropland",r:0,g:128,b:0}
+  ],
+};
+
+// ============ YEAR CONFIG ============
+const yearConfig = {
+  cdl:  { min:2008, max:2023, def:2023 },
+  aafc: { min:2009, max:2024, def:2024 },
+  crome:{ min:2017, max:2024, def:2024 },
+  jrc:  { min:2018, max:2022, def:2022 },
+  corine:{ values:[2000,2006,2012,2018], def:2018 },
+  esa:  { values:[2020,2021], def:2021 },
+  modis:{ min:2001, max:2022, def:2020 },
+  dea:  { min:2018, max:2020, def:2020 },
+  wallonia:{ min:2019, max:2023, def:2023 },
+  copernicus:{ min:2015, max:2019, def:2019 },
+};
+
+// ============ DATASETS ============
+const datasets = [
+  // Global
+  { id:'modis', section:'Global', name:'MODIS Land Cover', sub:'NASA GIBS · 500m · Global', res:'500m',
+    wms:'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi', layers:'MODIS_Combined_L3_IGBP_Land_Cover_Type_Annual',
+    version:'1.1.1', extraParams:{TIME:'{YEAR}-01-01'}, center:[20,0], zoom:3, maxZoom:8 },
+  { id:'gfsad', section:'Global', name:'GFSAD Croplands', sub:'NASA GIBS · 30m · Global', res:'30m',
+    wms:'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi', layers:'Agricultural_Lands_Croplands_2000',
+    version:'1.1.1', center:[20,0], zoom:3, maxZoom:8 },
+  { id:'esa', section:'Global', name:'ESA WorldCover', sub:'Terrascope · 10m · Global', res:'10m',
+    wms:'https://services.terrascope.be/wms/v2', layers:'WORLDCOVER_{YEAR}_MAP',
+    version:'1.1.1', center:[20,0], zoom:3, maxZoom:18 },
+  { id:'copernicus', section:'Global', name:'Copernicus LC 100m', sub:'CDSE WMTS · 100m · Global (watermarked)', res:'100m',
+    customUrl:'https://land.copernicus.eu/cdse/lc_global_100m_yearly_v3?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=A_DISCRETE_CLASSIFICATION&STYLE=default&FORMAT=image/png&TILEMATRIXSET=PopularWebMercator256&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&TIME={YEAR}-01-01',
+    xyz:true, center:[20,0], zoom:3, maxZoom:13 },
+  { id:'fromglc', section:'Global', name:'FROM-GLC 10m', sub:'ArcGIS tiles · 10m · Global', res:'10m',
+    customUrl:'https://tiles.arcgis.com/tiles/HVjI8GKrRtjcQ4Ry/arcgis/rest/services/Global_Land_Cover_Land_Use_Systems/MapServer/tile/{z}/{y}/{x}',
+    xyz:true, center:[20,0], zoom:3, maxZoom:9 },
+  { id:'worldcereal', section:'Global', name:'WorldCereal Temp Crops', sub:'Terrascope · 10m · Global', res:'10m',
+    wms:'https://services.terrascope.be/wms/v2', layers:'WORLDCEREAL_TEMPORARYCROPS_V1',
+    version:'1.1.1', center:[20,0], zoom:3, maxZoom:18 },
+  // GLAD Cropland (UMD 30m binary) — no public WMS available; use FROM-GLC below for GLAD land cover
+
+  // North America
+  { id:'cdl', section:'North America', name:'USDA CDL', sub:'CropScape · 30m · USA', res:'30m',
+    wms:'https://nassgeodata.gmu.edu/CropScapeService/wms_cdlall.cgi', layers:'cdl_{YEAR}',
+    version:'1.1.1', crs4326:true, center:[39,-98], zoom:5, maxZoom:17 },
+  { id:'aafc', section:'North America', name:'AAFC Canada', sub:'Crop Inventory · 30m · Canada', res:'30m',
+    wms:'https://www.agr.gc.ca/imagery-images/services/annual_crop_inventory/{YEAR}/ImageServer/WMSServer',
+    layers:'{YEAR}:annual_crop_inventory', version:'1.1.1', center:[56,-106], zoom:4, maxZoom:17 },
+
+  // Europe
+  { id:'corine', section:'Europe', name:'CORINE Land Cover', sub:'EEA · 100m · Europe', res:'100m',
+    wmsYearFn: y => `https://image.discomap.eea.europa.eu/arcgis/services/Corine/CLC${y}_WM/MapServer/WMSServer`,
+    layers:'12', version:'1.1.1', center:[50,15], zoom:5, maxZoom:12 },
+  { id:'jrc', section:'Europe', name:'JRC EU Crop Map', sub:'JRC · 10m · EU', res:'10m',
+    wms:'https://jeodpp.jrc.ec.europa.eu/jeodpp/services/ows/wms/landcover/eucropmap',
+    layers:'LC.EUCROPMAP.{YEAR}', version:'1.1.1', center:[48.5,12], zoom:5, maxZoom:18 },
+
+  // Europe — Parcels
+  { id:'crome', section:'Europe — Parcels', name:'CROME England', sub:'PMTiles viewer · Parcels · England', res:'Parcel',
+    wmsYearFn: y => `https://environment.data.gov.uk/spatialdata/crop-map-of-england-${y}/wms`,
+    layerYearFn: y => `Crop_Map_of_England_${y}`, version:'1.1.1', center:[52.5,-1.5], zoom:7, maxZoom:19,
+    cromeViewer:'https://proflewis.github.io/crome-work/' },
+  { id:'rpg', section:'Europe — Parcels', name:'RPG France', sub:'IGN · Parcels · France', res:'Parcel',
+    wms:'https://data.geopf.fr/wms-r/wms', layers:'LANDUSE.AGRICULTURE.LATEST',
+    version:'1.3.0', center:[46.5,2.5], zoom:6, maxZoom:19 },
+  { id:'dlr', section:'Europe — Parcels', name:'DLR Germany', sub:'DLR · 10m · Germany', res:'10m',
+    wms:'https://geoservice.dlr.de/eoc/land/wms', layers:'CROPTYPES_DE_P1Y',
+    version:'1.1.1', extraParams:{STYLES:'croptypes'}, center:[51.2,10], zoom:6, maxZoom:18 },
+  { id:'brp', section:'Europe — Parcels', name:'BRP Netherlands', sub:'PDOK · PMTiles overview + WMS · NL', res:'Parcel',
+    wms:'https://service.pdok.nl/rvo/brpgewaspercelen/wms/v1_0', layers:'BrpGewas',
+    version:'1.3.0', center:[52,5.5], zoom:8, maxZoom:19,
+    overviewPmtiles:'https://github.com/profLewis/crome-maps/raw/main/brp-overview.pmtiles', overviewMaxZoom:14 },
+  { id:'fvm', section:'Europe — Parcels', name:'Denmark FVM (2024)', sub:'PMTiles overview + WMS · Denmark', res:'Parcel',
+    wms:'https://geodata.fvm.dk/geoserver/ows', layers:'Jordbrugsanalyser:Marker24',
+    version:'1.1.1', extraParams:{STYLES:'Marker'}, center:[56.2,9.5], zoom:7, maxZoom:19,
+    overviewPmtiles:'https://github.com/profLewis/crome-maps/raw/main/fvm-overview.pmtiles', overviewMaxZoom:14 },
+  { id:'alv', section:'Europe — Parcels', name:'Flanders ALV', sub:'PMTiles overview + WMS · Belgium', res:'Parcel',
+    wms:'https://geo.api.vlaanderen.be/ALV/wms', layers:'LbGebrPerc2024',
+    version:'1.3.0', center:[50.8,4.3], zoom:9, maxZoom:19,
+    overviewPmtiles:'https://github.com/profLewis/crome-maps/raw/main/alv-overview.pmtiles', overviewMaxZoom:14 },
+  { id:'wallonia', section:'Europe — Parcels', name:'Wallonia Agriculture', sub:'PMTiles overview + WMS · Belgium', res:'Parcel',
+    wmsYearFn: y => `https://geoservices.wallonie.be/arcgis/services/AGRICULTURE/SIGEC_PARC_AGRI_ANON__${y}/MapServer/WMSServer`,
+    layers:'0', version:'1.3.0', center:[50.4,4.7], zoom:9, maxZoom:19,
+    overviewPmtiles:'https://github.com/profLewis/crome-maps/raw/main/wallonia-overview.pmtiles', overviewMaxZoom:14 },
+  { id:'invekos', section:'Europe — Parcels', name:'INVEKOS Austria', sub:'PMTiles overview + WMS · Austria', res:'Parcel',
+    wms:'https://inspire.lfrz.gv.at/009501/wms', layers:'inspire_feldstuecke_2025-2',
+    version:'1.3.0', center:[47.5,14.5], zoom:8, maxZoom:19,
+    overviewPmtiles:'https://github.com/profLewis/crome-maps/raw/main/invekos-overview.pmtiles', overviewMaxZoom:13 },
+  { id:'nibio', section:'Europe — Parcels', name:'NIBIO Norway', sub:'AR5 · Parcels · Norway · z14+', res:'Parcel',
+    wms:'https://wms.nibio.no/cgi-bin/ar5', layers:'Arealtype',
+    version:'1.1.1', crs4326:true, center:[60.5,10.8], zoom:8, maxZoom:19,
+    overviewPmtiles:'https://github.com/profLewis/crome-maps/raw/main/nibio-overview.pmtiles', overviewMaxZoom:14 },
+  { id:'gsaa', section:'Europe — Parcels', name:'Estonia GSAA', sub:'Parcels · Estonia · z13+', res:'Parcel',
+    wms:'https://kls.pria.ee/geoserver/inspire_gsaa/wms', layers:'LU.GSAA.AGRICULTURAL_PARCELS',
+    version:'1.3.0', crs4326:true, center:[58.5,25], zoom:13, maxZoom:19 },
+  { id:'latvia', section:'Europe — Parcels', name:'Latvia Field Blocks', sub:'Parcels · Latvia · z14+', res:'Parcel',
+    wms:'https://karte.lad.gov.lv/arcgis/services/lauku_bloki/MapServer/WMSServer', layers:'0',
+    version:'1.1.1', crs4326:true, center:[56.8,24.8], zoom:14, maxZoom:19 },
+  { id:'sweden', section:'Europe — Parcels', name:'Sweden Jordbruk', sub:'Parcels · Sweden · z13+', res:'Parcel',
+    wms:'https://epub.sjv.se/inspire/inspire/wms', layers:'arslager_block',
+    version:'1.1.1', crs4326:true, center:[60,18.5], zoom:13, maxZoom:19 },
+  { id:'flik', section:'Europe — Parcels', name:'Luxembourg FLIK', sub:'PMTiles overview + WMS · Luxembourg', res:'Parcel',
+    wms:'https://wms.inspire.geoportail.lu/geoserver/af/wms', layers:'LU.ExistingLandUseObject_LPIS_2024',
+    version:'1.3.0', center:[49.6,6.1], zoom:9, maxZoom:19,
+    overviewPmtiles:'https://github.com/profLewis/crome-maps/raw/main/flik-overview.pmtiles', overviewMaxZoom:14 },
+  { id:'blw', section:'Europe — Parcels', name:'Switzerland BLW', sub:'Parcels · Switzerland', res:'Parcel',
+    wms:'https://wms.geo.admin.ch/', layers:'ch.blw.landwirtschaftliche-nutzungsflaechen',
+    version:'1.3.0', center:[46.8,8.2], zoom:8, maxZoom:19 },
+  { id:'sigpac', section:'Europe — Parcels', name:'Spain SIGPAC', sub:'Parcels · Spain', res:'Parcel', broken:true,
+    wms:'https://wms.mapa.gob.es/sigpac/wms', layers:'AU.Sigpac:recinto',
+    version:'1.1.1', center:[40,-3.7], zoom:6, maxZoom:19 },
+  { id:'czechia', section:'Europe — Parcels', name:'Czechia LPIS', sub:'Parcels · CZ · z16+', res:'Parcel',
+    wms:'https://mze.gov.cz/public/app/wms/public_DPB_PB_OPV.fcgi', layers:'DPB_UCINNE',
+    version:'1.1.1', center:[49.8,15.5], zoom:16, maxZoom:19 },
+  { id:'slovenia', section:'Europe — Parcels', name:'Slovenia GERK', sub:'Parcels · SI · z15+', res:'Parcel',
+    wms:'https://storitve.eprostor.gov.si/ows-pub-wms/SI.MKGP.GERK/ows', layers:'RKG_BLOK_GERK',
+    version:'1.3.0', center:[46.2,14.5], zoom:15, maxZoom:19 },
+  { id:'croatia', section:'Europe — Parcels', name:'Croatia ARKOD', sub:'Parcels · HR · z15+', res:'Parcel',
+    wms:'https://servisi.apprrr.hr/NIPP/wms', layers:'hr.land_parcels',
+    version:'1.1.1', center:[45.2,15.3], zoom:15, maxZoom:19 },
+  { id:'portugal', section:'Europe — Parcels', name:'Portugal IFAP', sub:'PMTiles overview + WMS · PT', res:'Parcel',
+    wms:'https://www.ifap.pt/isip/ows/isip.data/wms', layers:'isip.data:ocupacoes.solo.Centro_N.2017jun10',
+    version:'1.3.0', center:[39.7,-8.2], zoom:7, maxZoom:19,
+    overviewPmtiles:'https://github.com/profLewis/crome-maps/raw/main/portugal-overview.pmtiles', overviewMaxZoom:14 },
+  { id:'poland', section:'Europe — Parcels', name:'Poland LPIS', sub:'Parcels · PL · z14+', res:'Parcel',
+    wms:'https://mapy.geoportal.gov.pl/wss/ext/arimr_lpis', layers:'14',
+    version:'1.1.1', crs4326:true, center:[51.9,19.1], zoom:14, maxZoom:19 },
+
+  // Africa
+  { id:'deafrica', section:'Africa', name:'DE Africa Cropland', sub:'DE Africa · 10m · Africa', res:'10m',
+    wms:'https://ows.digitalearth.africa/wms', layers:'crop_mask',
+    version:'1.3.0', center:[5,20], zoom:4, maxZoom:10,
+    pmtiles:'https://github.com/profLewis/crome-maps/raw/main/deafrica-crop.pmtiles', pmtilesSize:'97 MB', pmtilesZoom:'z0-10' },
+
+  // Oceania
+  { id:'dea', section:'Oceania', name:'DEA Land Cover', sub:'Geoscience AU · 25m · Australia', res:'25m',
+    wms:'https://ows.dea.ga.gov.au/', layers:'ga_ls_landcover',
+    version:'1.1.1', extraParams:{TIME:'{YEAR}-01-01'}, center:[-26,134], zoom:5, maxZoom:12,
+    pmtiles:'https://github.com/profLewis/crome-maps/raw/main/dea-landcover-overview.pmtiles', pmtilesSize:'278 MB', pmtilesZoom:'z0-10' },
+  { id:'abares', section:'Oceania', name:'ABARES Land Use', sub:'ArcGIS · Australia', res:'50m',
+    wms:'https://di-daa.img.arcgis.com/arcgis/services/Land_and_vegetation/Catchment_Scale_Land_Use_Simplified/ImageServer/WMSServer',
+    layers:'Catchment_Scale_Land_Use_Simplified', version:'1.3.0', center:[-25.3,133.8], zoom:5, maxZoom:17 },
+  { id:'nz', section:'Oceania', name:'NZ LCDB v6', sub:'Scinfo · 15m · New Zealand', res:'15m',
+    wms:'https://maps.scinfo.org.nz/lcdb/wms', layers:'lcdb_lcdb6',
+    version:'1.1.1', center:[-40.9,172.8], zoom:6, maxZoom:17,
+    pmtiles:'https://github.com/profLewis/crome-maps/raw/main/newzealand-overview.pmtiles', pmtilesSize:'32 MB', pmtilesZoom:'z0-10' },
+];
+
+// ============ BUILD WMS URL ============
+function getWmsUrl(ds, year) {
+  let baseUrl = ds.wmsYearFn ? ds.wmsYearFn(year) : ds.wms;
+  let layers = ds.layerYearFn ? ds.layerYearFn(year) : ds.layers;
+  if (baseUrl) baseUrl = baseUrl.replace('{YEAR}', year);
+  if (layers) layers = layers.replace('{YEAR}', year);
+  return { baseUrl, layers };
+}
+
+// ============ SELECT DATASET ============
+function selectDataset(ds) {
+  currentDSObj = ds;
+  currentDS = ds.id;
+  hiddenClasses = new Set();
+
+  // Year setup
+  const yc = yearConfig[ds.id];
+  if (yc) {
+    currentYear = yc.def;
+    const yearCtrl = document.getElementById('year-ctrl');
+    yearCtrl.style.display = 'flex';
+    const slider = document.getElementById('year-slider');
+    if (yc.values) {
+      slider.min = 0; slider.max = yc.values.length - 1;
+      slider.value = yc.values.indexOf(yc.def);
+    } else {
+      slider.min = yc.min; slider.max = yc.max; slider.value = yc.def;
+    }
+    updateYearDisplay();
+  } else {
+    currentYear = null;
+    document.getElementById('year-ctrl').style.display = 'none';
+  }
+
+  // Handle external viewer datasets (e.g., CROME via crome-work)
+  const iframe = document.getElementById('external-viewer');
+  if (ds.cromeViewer) {
+    if (currentLayer) { map.removeLayer(currentLayer); currentLayer = null; }
+    iframe.src = ds.cromeViewer;
+    iframe.style.display = 'block';
+    document.getElementById('info').innerHTML =
+      '<div class="title">' + ds.name + '</div>' +
+      '<div class="detail">Served from PMTiles via <a href="' + ds.cromeViewer + '" target="_blank" style="color:#4cc9f0;pointer-events:auto">' + new URL(ds.cromeViewer).hostname + '</a></div>';
+    document.getElementById('d-src').textContent = new URL(ds.cromeViewer).hostname + ' (PMTiles)';
+    document.getElementById('d-res').textContent = ds.res || '—';
+    document.getElementById('legend').style.display = 'none';
+    document.getElementById('year-ctrl').style.display = 'none';
+    buildList(document.getElementById('search').value);
+    return;
+  }
+  iframe.style.display = 'none';
+  iframe.src = '';
+
+  loadLayer();
+  map.flyTo(ds.center, ds.zoom, { duration: 1 });
+
+  let infoHtml = '<div class="title">' + ds.name + (currentYear ? ' (' + currentYear + ')' : '') + '</div>' +
+    '<div class="detail">' + ds.sub + '</div>';
+  if (ds.pmtiles) {
+    infoHtml += '<div class="detail" style="color:#4cc9f0;margin-top:4px">PMTiles cached on GitHub (' +
+      ds.pmtilesSize + ', ' + ds.pmtilesZoom + ')</div>';
+  }
+  document.getElementById('info').innerHTML = infoHtml;
+
+  // Update source in diagnostics
+  let srcType = 'WMS';
+  if (ds.pmtiles) srcType = 'WMS + PMTiles';
+  if (ds.overviewPmtiles) srcType = 'PMTiles overview + WMS';
+  if (ds.customUrl && ds.xyz) srcType = ds.customUrl.includes('WMTS') ? 'WMTS' : 'XYZ';
+  const src = ds.wmsYearFn ? new URL(ds.wmsYearFn(currentYear || 2023)).hostname :
+              ds.wms ? new URL(ds.wms).hostname :
+              ds.customUrl ? new URL(ds.customUrl.replace('{YEAR}','2023')).hostname : '—';
+  document.getElementById('d-src').textContent = src + ' (' + srcType + ')';
+  document.getElementById('d-res').textContent = ds.res || '—';
+
+  buildLegend(ds);
+  buildList(document.getElementById('search').value);
+}
+
+// ============ PMTILES RASTER LAYER ============
+const pmtilesCache = {}; // cache PMTiles instances by URL
+
+function createPMTilesLayer(pmtilesUrl, opts) {
+  if (!pmtilesCache[pmtilesUrl]) {
+    pmtilesCache[pmtilesUrl] = new pmtiles.PMTiles(pmtilesUrl);
+  }
+  const pm = pmtilesCache[pmtilesUrl];
+
+  return new (L.GridLayer.extend({
+    createTile: function(coords, done) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      const z = coords.z, x = coords.x, y = coords.y;
+
+      pm.getZxy(z, x, y).then(result => {
+        if (!result || !result.data || result.data.byteLength === 0) {
+          done(null, canvas); // empty tile
+          return;
+        }
+        const blob = new Blob([result.data], {type: 'image/png'});
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = function() {
+          ctx.drawImage(img, 0, 0, 256, 256);
+          URL.revokeObjectURL(url);
+          done(null, canvas);
+        };
+        img.onerror = function() {
+          URL.revokeObjectURL(url);
+          done(null, canvas);
+        };
+        img.src = url;
+      }).catch(() => {
+        done(null, canvas);
+      });
+      return canvas;
+    }
+  }))(opts);
+}
+
+function loadLayer() {
+  if (currentLayer) { map.removeLayer(currentLayer); currentLayer = null; }
+  const ds = currentDSObj;
+  if (!ds) return;
+  const opacity = document.getElementById('opacity').value / 100;
+  const year = currentYear || (yearConfig[ds.id] ? yearConfig[ds.id].def : 2023);
+  tileCount = 0;
+
+  // If dataset has overview PMTiles, use combined PMTiles + WMS layer
+  if (ds.overviewPmtiles) {
+    const pmLayer = createPMTilesLayer(ds.overviewPmtiles, {
+      maxZoom: ds.overviewMaxZoom || 14, opacity, tileSize: 256
+    });
+    // WMS layer for higher zooms
+    const {baseUrl, layers} = getWmsUrl(ds, year);
+    const wmsOpts = {
+      layers: layers, styles: '', format: 'image/png', transparent: true,
+      version: ds.version || '1.1.1', minZoom: (ds.overviewMaxZoom || 14) + 1,
+      maxZoom: ds.maxZoom || 19, opacity,
+    };
+    if (ds.extraParams) {
+      for (const [k, v] of Object.entries(ds.extraParams)) {
+        wmsOpts[k.toLowerCase()] = v.replace('{YEAR}', String(year));
+      }
+    }
+    wmsOpts.crs = ds.crs4326 ? L.CRS.EPSG4326 : L.CRS.EPSG3857;
+    const wmsLayer = L.tileLayer.wms(baseUrl, wmsOpts);
+    currentLayer = L.layerGroup([pmLayer, wmsLayer]).addTo(map);
+    return;
+  }
+
+  if (ds.xyz || ds.customUrl) {
+    let url = ds.customUrl || ds.url;
+    if (url.includes('{YEAR}')) url = url.replace('{YEAR}', String(year));
+    currentLayer = L.tileLayer(url, {
+      maxZoom: ds.maxZoom || 18, opacity, attribution: ds.name
+    }).addTo(map);
+  } else {
+    const {baseUrl, layers} = getWmsUrl(ds, year);
+    const wmsOpts = {
+      layers: layers,
+      styles: '',
+      format: 'image/png',
+      transparent: true,
+      version: ds.version || '1.1.1',
+      maxZoom: ds.maxZoom || 18,
+      opacity,
+    };
+    if (ds.extraParams) {
+      for (const [k, v] of Object.entries(ds.extraParams)) {
+        wmsOpts[k.toLowerCase()] = v.replace('{YEAR}', String(year));
+      }
+    }
+    wmsOpts.crs = ds.crs4326 ? L.CRS.EPSG4326 : L.CRS.EPSG3857;
+    currentLayer = L.tileLayer.wms(baseUrl, wmsOpts).addTo(map);
+  }
+
+  // Track tile loads
+  if (currentLayer) {
+    currentLayer.on('tileloadstart', () => { tileCount++; updateTileCount(); });
+    currentLayer.on('loading', () => { tileCount = 0; });
+  }
+}
+
+function updateTileCount() {
+  document.getElementById('d-tiles').textContent = tileCount + ' loaded';
+}
+
+// ============ YEAR CONTROLS ============
+function getYearFromSlider() {
+  const yc = yearConfig[currentDSObj?.id];
+  if (!yc) return null;
+  const slider = document.getElementById('year-slider');
+  return yc.values ? yc.values[parseInt(slider.value)] : parseInt(slider.value);
+}
+
+function updateYearDisplay() {
+  const y = getYearFromSlider();
+  if (y) document.getElementById('year-val').textContent = y;
+}
+
+function changeYear(delta) {
+  const slider = document.getElementById('year-slider');
+  slider.value = parseInt(slider.value) + delta;
+  currentYear = getYearFromSlider();
+  updateYearDisplay();
+  loadLayer();
+  // Update info
+  document.getElementById('info').innerHTML =
+    '<div class="title">' + currentDSObj.name + ' (' + currentYear + ')</div>' +
+    '<div class="detail">' + currentDSObj.sub + '</div>';
+}
+
+document.getElementById('year-prev').onclick = () => changeYear(-1);
+document.getElementById('year-next').onclick = () => changeYear(1);
+document.getElementById('year-slider').oninput = function() {
+  currentYear = getYearFromSlider();
+  updateYearDisplay();
+};
+document.getElementById('year-slider').onchange = function() {
+  currentYear = getYearFromSlider();
+  updateYearDisplay();
+  loadLayer();
+  document.getElementById('info').innerHTML =
+    '<div class="title">' + currentDSObj.name + ' (' + currentYear + ')</div>' +
+    '<div class="detail">' + currentDSObj.sub + '</div>';
+};
+
+// ============ LEGEND ============
+function buildLegend(ds) {
+  const el = document.getElementById('legend');
+  const entries = legends[ds.id];
+  if (!entries || entries.length === 0) {
+    el.innerHTML = '<div class="no-legend">No legend available for this dataset</div>';
+    el.style.display = 'block';
+    return;
+  }
+  let html = '<div class="legend-title"><span>Legend</span>' +
+    '<div class="legend-btns"><button onclick="toggleAll(true)">All on</button>' +
+    '<button onclick="toggleAll(false)">All off</button></div></div>';
+  entries.forEach((e, i) => {
+    const isHidden = hiddenClasses.has(e.l);
+    html += `<div class="legend-entry${isHidden ? ' hidden' : ''}" onclick="toggleClass('${e.l.replace(/'/g,"\\'")}', ${i})">` +
+      `<div class="legend-swatch" style="background:rgb(${e.r},${e.g},${e.b})"></div>` +
+      `<span class="legend-label">${e.l}</span></div>`;
+  });
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+function toggleClass(label) {
+  if (hiddenClasses.has(label)) hiddenClasses.delete(label);
+  else hiddenClasses.add(label);
+  buildLegend(currentDSObj);
+  applyFilter();
+}
+
+function toggleAll(show) {
+  const entries = legends[currentDSObj?.id];
+  if (!entries) return;
+  hiddenClasses.clear();
+  if (!show) entries.forEach(e => hiddenClasses.add(e.l));
+  buildLegend(currentDSObj);
+  applyFilter();
+}
+
+// ============ CANVAS PIXEL FILTERING ============
+function applyFilter() {
+  const ds = currentDSObj;
+  if (!ds) return;
+  const entries = legends[ds.id];
+  if (!entries) return;
+
+  // Compute visible colors
+  const visibleColors = entries.filter(e => !hiddenClasses.has(e.l)).map(e => [e.r, e.g, e.b]);
+
+  // If all visible, just use standard layer (no filtering needed)
+  if (hiddenClasses.size === 0) {
+    if (currentLayer && currentLayer._isFiltered) {
+      loadLayer(); // Reload unfiltered
+    }
+    return;
+  }
+
+  // Replace with canvas-filtered layer
+  if (currentLayer) map.removeLayer(currentLayer);
+  const opacity = document.getElementById('opacity').value / 100;
+  const year = currentYear || (yearConfig[ds.id] ? yearConfig[ds.id].def : 2023);
+
+  let tileUrlFn;
+  if (ds.xyz || ds.customUrl) {
+    let url = ds.customUrl || ds.url;
+    if (url.includes('{YEAR}')) url = url.replace('{YEAR}', String(year));
+    tileUrlFn = (coords) => L.Util.template(url, {z: coords.z, x: coords.x, y: coords.y, s: 'a'});
+  } else {
+    const {baseUrl, layers} = getWmsUrl(ds, year);
+    tileUrlFn = (coords) => {
+      const tileSize = 256;
+      const nw = map.unproject([coords.x * tileSize, coords.y * tileSize], coords.z);
+      const se = map.unproject([(coords.x + 1) * tileSize, (coords.y + 1) * tileSize], coords.z);
+      const crsKey = ds.version === '1.3.0' ? 'CRS' : 'SRS';
+      const srs = ds.crs4326 ? 'EPSG:4326' : 'EPSG:3857';
+      let bbox;
+      if (ds.crs4326) {
+        const ver = parseFloat(ds.version || '1.1.1');
+        // WMS 1.3.0 EPSG:4326 uses lat/lon; WMS 1.1.1 uses lon/lat
+        bbox = ver >= 1.3 ? `${se.lat},${nw.lng},${nw.lat},${se.lng}` : `${nw.lng},${se.lat},${se.lng},${nw.lat}`;
+      } else {
+        const nwM = L.CRS.EPSG3857.project(nw);
+        const seM = L.CRS.EPSG3857.project(se);
+        bbox = `${nwM.x},${seM.y},${seM.x},${nwM.y}`;
+      }
+      const stylesVal = (ds.extraParams && ds.extraParams.STYLES) ? encodeURIComponent(ds.extraParams.STYLES) : '';
+      let url = `${baseUrl}?SERVICE=WMS&VERSION=${ds.version}&REQUEST=GetMap&LAYERS=${encodeURIComponent(layers)}` +
+        `&STYLES=${stylesVal}&${crsKey}=${srs}&BBOX=${bbox}&WIDTH=${tileSize}&HEIGHT=${tileSize}&FORMAT=image/png&TRANSPARENT=TRUE`;
+      if (ds.extraParams) {
+        for (const [k, v] of Object.entries(ds.extraParams)) {
+          if (k.toUpperCase() === 'STYLES') continue; // already included above
+          url += `&${k}=${encodeURIComponent(v.replace('{YEAR}', String(year)))}`;
+        }
+      }
+      return url;
+    };
+  }
+
+  const FilteredLayer = L.GridLayer.extend({
+    createTile: function(coords, done) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      const url = tileUrlFn(coords);
+      // Try with CORS for pixel filtering; fall back without CORS (shows unfiltered)
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = function() {
+        ctx.drawImage(img, 0, 0, 256, 256);
+        try {
+          const imageData = ctx.getImageData(0, 0, 256, 256);
+          const d = imageData.data;
+          for (let i = 0; i < d.length; i += 4) {
+            if (d[i+3] === 0) continue;
+            const r = d[i], g = d[i+1], b = d[i+2];
+            let keep = false;
+            for (const [vr, vg, vb] of visibleColors) {
+              if (Math.abs(r-vr) + Math.abs(g-vg) + Math.abs(b-vb) < 80) { keep = true; break; }
+            }
+            if (!keep) d[i+3] = 0;
+          }
+          ctx.putImageData(imageData, 0, 0);
+        } catch(e) {
+          // Tainted canvas — show unfiltered
+        }
+        done(null, canvas);
+      };
+      img.onerror = function() {
+        // CORS blocked — reload without crossOrigin (cache-bust to avoid stale CORS failure)
+        const img2 = new Image();
+        const sep = url.includes('?') ? '&' : '?';
+        img2.onload = function() { ctx.drawImage(img2, 0, 0, 256, 256); done(null, canvas); };
+        img2.onerror = function() { done(null, canvas); };
+        img2.src = url + sep + '_nc=1';
+      };
+      img.src = url;
+      return canvas;
+    }
+  });
+
+  currentLayer = new FilteredLayer({ maxZoom: ds.maxZoom || 18, opacity, tileSize: 256, keepBuffer: 8 });
+  currentLayer._isFiltered = true;
+  currentLayer.addTo(map);
+}
+
+// ============ DIAGNOSTICS ============
+function updateDiagnostics() {
+  const z = map.getZoom();
+  const center = map.getCenter();
+  document.getElementById('d-zoom').textContent = z.toFixed(1);
+
+  // Compute scale: meters per pixel at this zoom and latitude
+  const mpp = 156543.03 * Math.cos(center.lat * Math.PI / 180) / Math.pow(2, z);
+  // Scale at 96 DPI: 1 pixel = 1/96 inch = 0.0254/96 m
+  const scaleDenom = Math.round(mpp / (0.0254 / 96));
+  let scaleStr;
+  if (scaleDenom >= 1000000) scaleStr = '1:' + (scaleDenom/1000000).toFixed(1) + 'M';
+  else if (scaleDenom >= 1000) scaleStr = '1:' + (scaleDenom/1000).toFixed(0) + 'K';
+  else scaleStr = '1:' + scaleDenom;
+  document.getElementById('d-scale').textContent = scaleStr;
+}
+
+map.on('zoomend moveend', updateDiagnostics);
+updateDiagnostics();
+
+// ============ SIDEBAR ============
+const listEl = document.getElementById('dataset-list');
+const searchEl = document.getElementById('search');
+
+function buildList(filter = '') {
+  listEl.innerHTML = '';
+  let lastSection = '';
+  const lc = filter.toLowerCase();
+  datasets.forEach(ds => {
+    if (lc && !ds.name.toLowerCase().includes(lc) && !ds.sub.toLowerCase().includes(lc) && !ds.section.toLowerCase().includes(lc)) return;
+    if (ds.section !== lastSection) {
+      lastSection = ds.section;
+      const h = document.createElement('div');
+      h.className = 'section-title';
+      h.textContent = ds.section;
+      listEl.appendChild(h);
+    }
+    const btn = document.createElement('button');
+    btn.className = 'ds-btn' + (ds.broken ? ' broken' : '') + (currentDS === ds.id ? ' active' : '');
+    const yearStr = yearConfig[ds.id] ? ' (' + (currentDS === ds.id && currentYear ? currentYear : yearConfig[ds.id]?.def || '') + ')' : '';
+    const pmBadge = ds.pmtiles ? ' <span style="color:#4cc9f0;font-size:9px">PMT</span>' : '';
+    btn.innerHTML = ds.name + yearStr + pmBadge + '<span class="sub">' + ds.sub + '</span>';
+    btn.onclick = () => selectDataset(ds);
+    listEl.appendChild(btn);
+  });
+}
+
+// Opacity
+document.getElementById('opacity').addEventListener('input', function() {
+  document.getElementById('opacity-val').textContent = this.value + '%';
+  if (currentLayer) currentLayer.setOpacity(this.value / 100);
+});
+
+searchEl.addEventListener('input', () => buildList(searchEl.value));
+
+buildList();
+selectDataset(datasets[0]);
+</script>
+</body>
+</html>
