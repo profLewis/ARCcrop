@@ -857,16 +857,12 @@ struct MapContainerView: UIViewRepresentable {
                 mapView.styleURL = Self.writeStyleJSON(mapStyle: mapStyle)
             }
 
-            // Zoom to coverage of newly added source
+            // Zoom to coverage of newly added source if current view isn't within it
             if let addedSource = activeCropMaps.last, addedIDs.contains(addedSource.id),
                let region = addedSource.coverageRegion {
-                let center = CLLocationCoordinate2D(latitude: region.lat, longitude: region.lon)
-                let visible = mapView.visibleCoordinateBounds
-                let overlaps = abs(visible.sw.latitude + visible.ne.latitude) / 2 - center.latitude <
-                    (visible.ne.latitude - visible.sw.latitude + region.latSpan) / 2 &&
-                    abs(visible.sw.longitude + visible.ne.longitude) / 2 - center.longitude <
-                    (visible.ne.longitude - visible.sw.longitude + region.lonSpan) / 2
-                if !overlaps {
+                let viewCenter = mapView.centerCoordinate
+                if !addedSource.covers(latitude: viewCenter.latitude, longitude: viewCenter.longitude) {
+                    let center = CLLocationCoordinate2D(latitude: region.lat, longitude: region.lon)
                     mapView.setCenter(center, zoomLevel: 5, animated: true)
                 }
             }
@@ -974,27 +970,39 @@ struct MapContainerView: UIViewRepresentable {
                 }
 
                 // Determine if we need the proxy (4326 reprojection or pixel filtering)
+                // Use "keep mode": pass the colors of VISIBLE classes so only matching pixels
+                // are shown. This handles blended/anti-aliased pixels at low zoom that don't
+                // match any single class — they get hidden since they match no visible class.
+                // "Keep mode": when any legend class is hidden, compute visible colors.
+                // wantsFiltering = true means the keep= param is always added (even empty = all transparent).
+                let wantsFiltering = !currentHidden.isEmpty
                 let filterColors: [(r: UInt8, g: UInt8, b: UInt8)]
-                if !currentHidden.isEmpty {
+                if wantsFiltering {
                     let entries = CropMapLegendData.forSource(source)?.entries ?? []
-                    filterColors = LegendColorExtractor.rgbValues(for: entries, matching: currentHidden)
+                    let visibleLabels = Set(entries.map(\.label)).subtracting(currentHidden)
+                    filterColors = LegendColorExtractor.rgbValues(for: entries, matching: visibleLabels)
                 } else {
                     filterColors = []
                 }
 
                 let tileURL: String
                 let isPMTiles = params.tileURLTemplate.contains(PMTilesURLProtocol.proxyHost)
-                let isXYZ = params.tileURLTemplate.contains("{z}")  // XYZ tile sources can't use WMS proxy
+                let isXYZ = params.tileURLTemplate.contains("{z}")
                 if isPMTiles {
-                    // PMTiles source — append filter as query param (applied in URLProtocol)
-                    if !filterColors.isEmpty {
+                    // PMTiles source — append keep param (only these colors stay visible)
+                    if wantsFiltering {
                         let filterParam = filterColors.map { "\($0.r),\($0.g),\($0.b)" }.joined(separator: "|")
                         let sep = params.tileURLTemplate.contains("?") ? "&" : "?"
-                        tileURL = params.tileURLTemplate + "\(sep)filter=\(filterParam)"
+                        tileURL = params.tileURLTemplate + "\(sep)keep=\(filterParam)"
                     } else {
                         tileURL = params.tileURLTemplate
                     }
-                } else if !isXYZ && (params.needs4326 || !filterColors.isEmpty) {
+                } else if isXYZ && wantsFiltering {
+                    // XYZ tile source with filtering — route through proxy for per-pixel filtering
+                    tileURL = CropMapOverlayFactory.xyzProxyURL(
+                        template: params.tileURLTemplate,
+                        filterColors: filterColors)
+                } else if !isXYZ && (params.needs4326 || wantsFiltering) {
                     // WMS/bbox source — route through URLProtocol proxy for reprojection/filtering
                     let proxyTemplate = params.tileURLTemplate
                         .replacingOccurrences(of: "{bbox-epsg-3857}", with: "PROXY_BBOX")

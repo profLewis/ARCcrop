@@ -13,6 +13,13 @@ final class PMTilesURLProtocol: URLProtocol {
     private nonisolated(unsafe) static var archiveCache: [String: PMTilesLocalArchive] = [:]
     private static let archiveLock = NSLock()
 
+    /// Clear cached archive so it's reloaded from disk (e.g. after a new download)
+    static func clearCache(for filename: String) {
+        archiveLock.lock()
+        archiveCache.removeValue(forKey: filename)
+        archiveLock.unlock()
+    }
+
     override class func canInit(with request: URLRequest) -> Bool {
         request.url?.host == proxyHost
     }
@@ -63,7 +70,8 @@ final class PMTilesURLProtocol: URLProtocol {
         for request: URLRequest,
         client: URLProtocolClient?,
         protocol proto: URLProtocol,
-        filterColors: [(r: UInt8, g: UInt8, b: UInt8)] = []
+        filterColors: [(r: UInt8, g: UInt8, b: UInt8)] = [],
+        wantsFiltering: Bool = false
     ) {
         guard let url = request.url else {
             client?.urlProtocol(proto, didFailWithError: NSError(
@@ -97,9 +105,9 @@ final class PMTilesURLProtocol: URLProtocol {
             tileData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAABJRUFUeJxjYAAAAAMAAUbRyNIAAAAASUVORK5CYII=")!
         }
 
-        // Apply pixel filtering for hidden legend classes
-        if !filterColors.isEmpty,
-           let filtered = WMSTileURLProtocol.filterPixels(tileData, hiding: filterColors) {
+        // Apply pixel filtering for hidden legend classes (empty colors = keep nothing)
+        if wantsFiltering || !filterColors.isEmpty,
+           let filtered = WMSTileURLProtocol.filterPixels(tileData, keeping: filterColors) {
             tileData = filtered
         }
 
@@ -161,19 +169,93 @@ final class PMTilesURLProtocol: URLProtocol {
         }
         Self.archiveLock.unlock()
 
-        // Find file in app bundle
+        var data: Data?
         let name = (filename as NSString).deletingPathExtension
-        guard let fileURL = Bundle.main.url(forResource: name, withExtension: "pmtiles"),
-              let data = try? Data(contentsOf: fileURL, options: .mappedIfSafe) else {
-            return nil
+
+        // 1. Check app bundle
+        if let fileURL = Bundle.main.url(forResource: name, withExtension: "pmtiles") {
+            data = try? Data(contentsOf: fileURL, options: .mappedIfSafe)
         }
 
-        guard let archive = PMTilesLocalArchive(data: data) else { return nil }
+        // 2. Check downloaded cache directory
+        if data == nil, let cacheURL = RemotePMTilesCache.cacheURL(for: filename) {
+            data = try? Data(contentsOf: cacheURL, options: .mappedIfSafe)
+        }
+
+        guard let data, let archive = PMTilesLocalArchive(data: data) else { return nil }
 
         Self.archiveLock.lock()
         Self.archiveCache[filename] = archive
         Self.archiveLock.unlock()
         return archive
+    }
+}
+
+// MARK: - Remote PMTiles Cache
+
+/// Downloads and caches PMTiles files from remote URLs (e.g. GitHub).
+/// Once cached, tiles are served locally by PMTilesURLProtocol.
+enum RemotePMTilesCache {
+    /// Known remote PMTiles files and their GitHub download URLs
+    static let remoteFiles: [String: String] = [
+        "newzealand-overview.pmtiles": "https://github.com/profLewis/crome-maps/raw/main/newzealand-overview.pmtiles",
+        "dea-landcover-overview.pmtiles": "https://github.com/profLewis/crome-maps/raw/main/dea-landcover-overview.pmtiles",
+        "deafrica-crop.pmtiles": "https://github.com/profLewis/crome-maps/raw/main/deafrica-crop.pmtiles",
+    ]
+
+    private static var cacheDir: URL? {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
+            .first?.appendingPathComponent("PMTiles")
+    }
+
+    /// Get the local cache path for a PMTiles file (nil if not cached)
+    static func cacheURL(for filename: String) -> URL? {
+        guard let dir = cacheDir else { return nil }
+        let path = dir.appendingPathComponent(filename)
+        return FileManager.default.fileExists(atPath: path.path) ? path : nil
+    }
+
+    /// Check if a PMTiles file is available locally (bundle or cache)
+    static func isAvailable(_ filename: String) -> Bool {
+        let name = (filename as NSString).deletingPathExtension
+        if Bundle.main.url(forResource: name, withExtension: "pmtiles") != nil { return true }
+        return cacheURL(for: filename) != nil
+    }
+
+    /// Download a remote PMTiles file to local cache
+    static func download(_ filename: String) {
+        guard let urlString = remoteFiles[filename],
+              let url = URL(string: urlString),
+              cacheURL(for: filename) == nil else { return }
+
+        Task.detached(priority: .utility) {
+            do {
+                let (data, response) = try await URLSession.shared.data(from: url)
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                guard status == 200, data.count > 127 else {
+                    await MainActor.run {
+                        ActivityLog.shared.warn("PMTiles download failed for \(filename) (HTTP \(status))")
+                    }
+                    return
+                }
+
+                guard let dir = cacheDir else { return }
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+                let dest = dir.appendingPathComponent(filename)
+                try data.write(to: dest)
+
+                let sizeKB = data.count / 1024
+                await MainActor.run {
+                    ActivityLog.shared.success("PMTiles cached: \(filename) (\(sizeKB) KB)")
+                    // Clear archive cache to pick up the newly downloaded file
+                    PMTilesURLProtocol.clearCache(for: filename)
+                }
+            } catch {
+                await MainActor.run {
+                    ActivityLog.shared.warn("PMTiles download error: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 }
 

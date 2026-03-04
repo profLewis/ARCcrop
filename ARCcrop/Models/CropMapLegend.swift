@@ -265,12 +265,100 @@ struct CropMapLegendData: Sendable {
                 ]
             )
 
+        case .abaresAustralia:
+            // ABARES Catchment Scale Land Use — ALUM classification
+            return CropMapLegendData(
+                title: "ABARES Land Use",
+                entries: [
+                    LegendEntry(color: Color(red: 0/255, green: 80/255, blue: 0/255), label: "Nature Conservation"),
+                    LegendEntry(color: Color(red: 120/255, green: 180/255, blue: 50/255), label: "Grazing Native Veg"),
+                    LegendEntry(color: Color(red: 0/255, green: 120/255, blue: 0/255), label: "Production Forests"),
+                    LegendEntry(color: Color(red: 180/255, green: 230/255, blue: 80/255), label: "Grazing Pastures"),
+                    LegendEntry(color: Color(red: 255/255, green: 230/255, blue: 0/255), label: "Dryland Cropping"),
+                    LegendEntry(color: Color(red: 255/255, green: 170/255, blue: 0/255), label: "Dryland Horticulture"),
+                    LegendEntry(color: Color(red: 0/255, green: 170/255, blue: 255/255), label: "Irrigated Cropping"),
+                    LegendEntry(color: Color(red: 0/255, green: 220/255, blue: 200/255), label: "Irrigated Pastures"),
+                    LegendEntry(color: Color(red: 255/255, green: 0/255, blue: 0/255), label: "Urban/Residential"),
+                    LegendEntry(color: Color(red: 150/255, green: 150/255, blue: 150/255), label: "Mining/Waste"),
+                    LegendEntry(color: Color(red: 0/255, green: 0/255, blue: 200/255), label: "Water"),
+                ]
+            )
+
+        case .lcdbNewZealand:
+            // LCDB v6 land cover classification
+            return CropMapLegendData(
+                title: "LCDB New Zealand",
+                entries: [
+                    LegendEntry(color: Color(red: 0/255, green: 80/255, blue: 0/255), label: "Indigenous Forest"),
+                    LegendEntry(color: Color(red: 0/255, green: 140/255, blue: 0/255), label: "Exotic Forest"),
+                    LegendEntry(color: Color(red: 120/255, green: 200/255, blue: 0/255), label: "High Prod. Grassland"),
+                    LegendEntry(color: Color(red: 180/255, green: 200/255, blue: 80/255), label: "Low Prod. Grassland"),
+                    LegendEntry(color: Color(red: 255/255, green: 230/255, blue: 0/255), label: "Cropland"),
+                    LegendEntry(color: Color(red: 255/255, green: 170/255, blue: 0/255), label: "Orchard/Vineyard"),
+                    LegendEntry(color: Color(red: 200/255, green: 200/255, blue: 80/255), label: "Tussock"),
+                    LegendEntry(color: Color(red: 255/255, green: 0/255, blue: 0/255), label: "Built-up"),
+                    LegendEntry(color: Color(red: 0/255, green: 100/255, blue: 200/255), label: "Water"),
+                    LegendEntry(color: Color(red: 0/255, green: 170/255, blue: 170/255), label: "Wetland"),
+                    LegendEntry(color: Color(red: 200/255, green: 200/255, blue: 200/255), label: "Bare/Gravel"),
+                ]
+            )
+
+        case .fvmDenmark:
+            // Danish crop categories from Jordbrugsanalyser WMS GetLegendGraphic
+            return CropMapLegendData(
+                title: "Denmark Crops",
+                entries: [
+                    LegendEntry(color: Color(red: 0x80/255, green: 0xB1/255, blue: 0xD3/255), label: "Vinterhvede (W.Wheat)"),
+                    LegendEntry(color: Color(red: 0xBC/255, green: 0x80/255, blue: 0xBD/255), label: "Vårbyg (Sp.Barley)"),
+                    LegendEntry(color: Color(red: 0xFD/255, green: 0xB4/255, blue: 0x62/255), label: "Vinterraps (Rapeseed)"),
+                    LegendEntry(color: Color(red: 0xFF/255, green: 0xFF/255, blue: 0xB3/255), label: "Majs (Maize)"),
+                    LegendEntry(color: Color(red: 0xFC/255, green: 0xCD/255, blue: 0xE5/255), label: "Vinterbyg (W.Barley)"),
+                    LegendEntry(color: Color(red: 0xBE/255, green: 0xBA/255, blue: 0xDA/255), label: "Vinterrug (W.Rye)"),
+                    LegendEntry(color: Color(red: 0x8D/255, green: 0xD3/255, blue: 0xC7/255), label: "Kartoffel (Potato)"),
+                    LegendEntry(color: Color(red: 0xB3/255, green: 0xDE/255, blue: 0x69/255), label: "Græs (Grass/Forage)"),
+                    LegendEntry(color: Color(red: 0xFB/255, green: 0x80/255, blue: 0x72/255), label: "Andet (Other)"),
+                    LegendEntry(color: Color(red: 0xD9/255, green: 0xD9/255, blue: 0xD9/255), label: "Ikke Omdrift (Perm.)"),
+                ]
+            )
+
+        case .walloniaAgriculture:
+            // Wallonia crop categories from WMS layer 0 GetLegendGraphic
+            return CropMapLegendData(
+                title: "Wallonia Crops",
+                entries: [
+                    LegendEntry(color: Color(red: 197/255, green: 255/255, blue: 140/255), label: "Production fourragère"),
+                    LegendEntry(color: Color(red: 255/255, green: 226/255, blue: 140/255), label: "Céréales"),
+                    LegendEntry(color: Color(red: 209/255, green: 209/255, blue: 118/255), label: "Oléagineux"),
+                    LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 26/255), label: "Cultures horticoles"),
+                    LegendEntry(color: Color(red: 255/255, green: 140/255, blue: 255/255), label: "Fruits à coque"),
+                    LegendEntry(color: Color(red: 140/255, green: 255/255, blue: 255/255), label: "Plantes à fibres"),
+                    LegendEntry(color: Color(red: 255/255, green: 198/255, blue: 140/255), label: "Pommes de terre"),
+                    LegendEntry(color: Color(red: 210/255, green: 179/255, blue: 118/255), label: "Autres utilisations"),
+                ]
+            )
+
+        case .nibioNorway:
+            // NIBIO AR5 land resource classification
+            return CropMapLegendData(
+                title: "NIBIO AR5 Norway",
+                entries: [
+                    LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 0/255), label: "Fulldyrka jord"),
+                    LegendEntry(color: Color(red: 255/255, green: 200/255, blue: 0/255), label: "Overflatedyrka jord"),
+                    LegendEntry(color: Color(red: 180/255, green: 255/255, blue: 0/255), label: "Innmarksbeite"),
+                    LegendEntry(color: Color(red: 0/255, green: 140/255, blue: 0/255), label: "Skog (Forest)"),
+                    LegendEntry(color: Color(red: 200/255, green: 200/255, blue: 200/255), label: "Åpen mark (Open)"),
+                    LegendEntry(color: Color(red: 0/255, green: 100/255, blue: 200/255), label: "Vann (Water)"),
+                    LegendEntry(color: Color(red: 0/255, green: 180/255, blue: 180/255), label: "Myr (Wetland)"),
+                    LegendEntry(color: Color(red: 255/255, green: 0/255, blue: 0/255), label: "Bebygd (Built-up)"),
+                ]
+            )
+
         // EU parcel maps — server-styled, no fixed legend
-        case .invekosAustria, .alvFlanders, .sigpacSpain, .fvmDenmark, .lpisCzechia,
+        case .invekosAustria, .alvFlanders, .sigpacSpain, .lpisCzechia,
              .gerkSlovenia, .arkodCroatia, .gsaaEstonia, .latviaFieldBlocks,
              .ifapPortugal, .lpisPoland, .jordbrukSweden, .flikLuxembourg, .blwSwitzerland,
-             .abaresAustralia, .lcdbNewZealand, .geoIntaArgentina,
-             .walloniaAgriculture, .nibioNorway, .indiaBhuvan, .indonesiaKlhk:
+             .geoIntaArgentina,
+             .indiaBhuvan, .indonesiaKlhk:
             return nil
 
         case .esaWorldCover:
@@ -349,25 +437,36 @@ struct CropMapLegendData: Sendable {
             )
 
         case .copernicusLandCover:
+            // Copernicus Global Land Service LC100 Discrete Classification palette
             return CropMapLegendData(
-                title: "Copernicus LC",
+                title: "Copernicus LC100",
                 entries: [
-                    LegendEntry(color: .yellow, label: "Cropland"),
-                    LegendEntry(color: .green, label: "Forest"),
-                    LegendEntry(color: .brown, label: "Bare/Sparse"),
-                    LegendEntry(color: .blue, label: "Water"),
-                    LegendEntry(color: .gray, label: "Urban"),
+                    LegendEntry(color: Color(red: 0/255, green: 60/255, blue: 0/255), label: "Closed Forest"),
+                    LegendEntry(color: Color(red: 0/255, green: 160/255, blue: 0/255), label: "Open Forest"),
+                    LegendEntry(color: Color(red: 255/255, green: 187/255, blue: 34/255), label: "Shrubs"),
+                    LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 76/255), label: "Herbaceous"),
+                    LegendEntry(color: Color(red: 246/255, green: 141/255, blue: 210/255), label: "Cropland"),
+                    LegendEntry(color: Color(red: 250/255, green: 0/255, blue: 0/255), label: "Built-up"),
+                    LegendEntry(color: Color(red: 180/255, green: 180/255, blue: 180/255), label: "Bare/Sparse"),
+                    LegendEntry(color: Color(red: 0/255, green: 100/255, blue: 200/255), label: "Water"),
+                    LegendEntry(color: Color(red: 0/255, green: 150/255, blue: 160/255), label: "Wetland"),
+                    LegendEntry(color: Color(red: 250/255, green: 230/255, blue: 160/255), label: "Moss/Lichen"),
                 ]
             )
 
         case .fromGLC:
+            // GLAD Global Land Cover/Land Use — ArcGIS tile symbology
             return CropMapLegendData(
-                title: "GLAD GLCLUC",
+                title: "GLAD Land Cover",
                 entries: [
-                    LegendEntry(color: .yellow, label: "Cropland"),
-                    LegendEntry(color: .green, label: "Forest"),
-                    LegendEntry(color: .cyan, label: "Grassland"),
-                    LegendEntry(color: .gray, label: "Other"),
+                    LegendEntry(color: Color(red: 0/255, green: 100/255, blue: 0/255), label: "Dense Forest"),
+                    LegendEntry(color: Color(red: 100/255, green: 180/255, blue: 0/255), label: "Open Forest"),
+                    LegendEntry(color: Color(red: 200/255, green: 220/255, blue: 100/255), label: "Grassland"),
+                    LegendEntry(color: Color(red: 255/255, green: 200/255, blue: 50/255), label: "Cropland"),
+                    LegendEntry(color: Color(red: 250/255, green: 0/255, blue: 0/255), label: "Built-up"),
+                    LegendEntry(color: Color(red: 0/255, green: 100/255, blue: 200/255), label: "Water"),
+                    LegendEntry(color: Color(red: 180/255, green: 180/255, blue: 180/255), label: "Bare"),
+                    LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 255/255), label: "Snow/Ice"),
                 ]
             )
 
@@ -391,16 +490,21 @@ struct CropMapLegendData: Sendable {
                     LegendEntry(color: Color(red: 255/255, green: 0/255, blue: 0/255), label: "Urban"),
                     LegendEntry(color: Color(red: 255/255, green: 210/255, blue: 120/255), label: "Cropland/Natural"),
                     LegendEntry(color: Color(red: 0/255, green: 0/255, blue: 200/255), label: "Water"),
+                    LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 255/255), label: "Snow/Ice"),
                     LegendEntry(color: Color(red: 200/255, green: 200/255, blue: 200/255), label: "Barren"),
                 ]
             )
 
         case .gfsadCropland:
+            // Continuous gradient: cream (low) → orange → brown (high cropland %)
             return CropMapLegendData(
                 title: "GFSAD Croplands",
                 entries: [
-                    LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 0/255), label: "Cropland"),
-                    LegendEntry(color: Color(red: 200/255, green: 200/255, blue: 200/255), label: "Non-Cropland"),
+                    LegendEntry(color: Color(red: 254/255, green: 244/255, blue: 221/255), label: "< 20% Cropland"),
+                    LegendEntry(color: Color(red: 254/255, green: 220/255, blue: 180/255), label: "20-40%"),
+                    LegendEntry(color: Color(red: 240/255, green: 160/255, blue: 100/255), label: "40-60%"),
+                    LegendEntry(color: Color(red: 220/255, green: 100/255, blue: 20/255), label: "60-80%"),
+                    LegendEntry(color: Color(red: 180/255, green: 60/255, blue: 0/255), label: "> 80% Cropland"),
                 ]
             )
 
@@ -451,9 +555,9 @@ struct CropMapLegendData: Sendable {
             return nil
 
         case .turkeyCorine:
-            // CORINE simplified agricultural classes
+            // CORINE Land Cover 2018 simplified classes
             return CropMapLegendData(
-                title: "CORINE Turkey",
+                title: "CORINE Land Cover",
                 entries: [
                     LegendEntry(color: Color(red: 255/255, green: 255/255, blue: 168/255), label: "Arable Land"),
                     LegendEntry(color: Color(red: 242/255, green: 166/255, blue: 77/255), label: "Permanent Crops"),

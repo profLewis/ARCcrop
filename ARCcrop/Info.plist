@@ -15,6 +15,13 @@
 				<key>NSIncludesSubdomains</key>
 				<true/>
 			</dict>
+			<key>geonode.conabio.gob.mx</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
 			<key>arccrop-filter.internal</key>
 			<dict>
 				<key>NSExceptionAllowsInsecureHTTPLoads</key>

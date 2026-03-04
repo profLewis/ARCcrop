@@ -22,7 +22,7 @@ struct WMSSourceParams {
         // WMS/bbox sources: allow MapLibre to request tiles up to z18 or
         // the source maxZoom, whichever is higher.  The server generates
         // each tile on-the-fly at whatever bbox we send.
-        return max(maxZoom, 18)
+        return max(maxZoom, 22)
     }
 }
 
@@ -67,56 +67,36 @@ final class WMSTileURLProtocol: URLProtocol, @unchecked Sendable {
 
         // Delegate to PMTilesURLProtocol for pmtiles requests
         if url.host == PMTilesURLProtocol.proxyHost {
-            // Parse filter colors from query params
-            var pmtilesFilterColors: [(r: UInt8, g: UInt8, b: UInt8)] = []
-            if let comps = URLComponents(url: url, resolvingAgainstBaseURL: false),
-               let filterParam = comps.queryItems?.first(where: { $0.name == "filter" })?.value {
-                for rgb in filterParam.split(separator: "|") {
+            // Parse keep colors from query params (only these colors stay visible)
+            let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            let hasKeep = comps?.queryItems?.contains { $0.name == "keep" } ?? false
+            var pmtilesKeepColors: [(r: UInt8, g: UInt8, b: UInt8)] = []
+            if let keepParam = comps?.queryItems?.first(where: { $0.name == "keep" })?.value, !keepParam.isEmpty {
+                for rgb in keepParam.split(separator: "|") {
                     let parts = rgb.split(separator: ",")
                     if parts.count == 3,
                        let r = UInt8(parts[0]), let g = UInt8(parts[1]), let b = UInt8(parts[2]) {
-                        pmtilesFilterColors.append((r: r, g: g, b: b))
+                        pmtilesKeepColors.append((r: r, g: g, b: b))
                     }
                 }
             }
             PMTilesURLProtocol.serveTile(
                 for: request, client: client, protocol: self,
-                filterColors: pmtilesFilterColors)
+                filterColors: pmtilesKeepColors, wantsFiltering: hasKeep)
             return
         }
 
         let pathComponents = url.pathComponents.filter { $0 != "/" }
-        // Path: ["t", bbox_string, base64_encoded_url]
-        guard pathComponents.count >= 3 else {
-            fail(msg: "Invalid path (expected /t/bbox/base64): \(url.path)")
-            return
-        }
 
-        let bboxString = pathComponents[1]
-        let base64Part = pathComponents[2]
-
-        // Decode real WMS URL from base64url
-        let base64 = base64Part
-            .replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
-        let padded = base64 + String(repeating: "=", count: (4 - base64.count % 4) % 4)
-        guard let data = Data(base64Encoded: padded),
-              var realURLString = String(data: data, encoding: .utf8) else {
-            fail(msg: "Failed to decode base64")
-            return
-        }
-
-        // Substitute bbox placeholder with actual values
-        realURLString = realURLString.replacingOccurrences(of: "BBOX=PROXY_BBOX", with: "BBOX=\(bboxString)")
-
-        // Parse query params
+        // Parse query params (shared by both paths)
         let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         let queryItems = components?.queryItems ?? []
         let needs4326 = queryItems.contains { $0.name == "crs4326" }
+        let hasKeepFilter = queryItems.contains { $0.name == "keep" }
 
-        // Parse filter colors
+        // Parse keep colors (only these colors stay visible when filtering)
         var filterColors: [(r: UInt8, g: UInt8, b: UInt8)] = []
-        if let filterParam = queryItems.first(where: { $0.name == "filter" })?.value {
+        if let filterParam = queryItems.first(where: { $0.name == "keep" })?.value, !filterParam.isEmpty {
             for rgb in filterParam.split(separator: "|") {
                 let parts = rgb.split(separator: ",")
                 if parts.count == 3,
@@ -126,9 +106,51 @@ final class WMSTileURLProtocol: URLProtocol, @unchecked Sendable {
             }
         }
 
-        // 4326 reprojection
-        if needs4326 {
-            realURLString = Self.reproject3857to4326(realURLString, bbox: bboxString)
+        var realURLString: String
+        var bboxString: String? // only set for WMS/bbox paths
+
+        if pathComponents.first == "xyz", pathComponents.count >= 5 {
+            // XYZ tile path: ["xyz", z, y, x, base64_encoded_url]
+            let z = pathComponents[1], y = pathComponents[2], x = pathComponents[3]
+            let base64Part = pathComponents[4]
+            let base64 = base64Part
+                .replacingOccurrences(of: "-", with: "+")
+                .replacingOccurrences(of: "_", with: "/")
+            let padded = base64 + String(repeating: "=", count: (4 - base64.count % 4) % 4)
+            guard let data = Data(base64Encoded: padded),
+                  var template = String(data: data, encoding: .utf8) else {
+                fail(msg: "Failed to decode base64 (xyz)")
+                return
+            }
+            template = template.replacingOccurrences(of: "PROXY_Z", with: z)
+            template = template.replacingOccurrences(of: "PROXY_Y", with: y)
+            template = template.replacingOccurrences(of: "PROXY_X", with: x)
+            realURLString = template
+        } else if pathComponents.first == "t", pathComponents.count >= 3 {
+            // WMS/bbox path: ["t", bbox_string, base64_encoded_url]
+            bboxString = pathComponents[1]
+            let base64Part = pathComponents[2]
+            let base64 = base64Part
+                .replacingOccurrences(of: "-", with: "+")
+                .replacingOccurrences(of: "_", with: "/")
+            let padded = base64 + String(repeating: "=", count: (4 - base64.count % 4) % 4)
+            guard let data = Data(base64Encoded: padded),
+                  var template = String(data: data, encoding: .utf8) else {
+                fail(msg: "Failed to decode base64")
+                return
+            }
+            // Substitute bbox placeholder (case-insensitive for non-WMS REST APIs)
+            template = template.replacingOccurrences(
+                of: "BBOX=PROXY_BBOX", with: "BBOX=\(bboxString!)", options: .caseInsensitive)
+            realURLString = template
+
+            // 4326 reprojection
+            if needs4326 {
+                realURLString = Self.reproject3857to4326(realURLString, bbox: bboxString!)
+            }
+        } else {
+            fail(msg: "Invalid proxy path: \(url.path)")
+            return
         }
 
         guard let realURL = URL(string: realURLString) else {
@@ -186,12 +208,12 @@ final class WMSTileURLProtocol: URLProtocol, @unchecked Sendable {
             }
 
             // Reproject tile from 4326 back to 3857 if needed
-            if needs4326, let reprojected = Self.reprojectTile4326to3857(tileData, mercBbox: bboxString) {
+            if needs4326, let bbox = bboxString, let reprojected = Self.reprojectTile4326to3857(tileData, mercBbox: bbox) {
                 tileData = reprojected
             }
 
-            // Apply pixel filtering if needed
-            if !filterColors.isEmpty, let filtered = Self.filterPixels(tileData, hiding: filterColors) {
+            // Apply pixel filtering if keep= param was present (empty = keep nothing)
+            if hasKeepFilter, let filtered = Self.filterPixels(tileData, keeping: filterColors) {
                 tileData = filtered
             }
 
@@ -315,10 +337,11 @@ final class WMSTileURLProtocol: URLProtocol, @unchecked Sendable {
 
     // MARK: Per-pixel filtering
 
-    /// Filter pixels using nearest-color matching: for each target color, find the closest
-    /// actual pixel color in the tile, then filter using that exact value. This handles
-    /// color space mismatches and rendering differences across different WMS servers.
-    static func filterPixels(_ pngData: Data, hiding colors: [(r: UInt8, g: UInt8, b: UInt8)]) -> Data? {
+    /// Filter pixels using "keep mode": only pixels matching the given VISIBLE colors
+    /// are kept; everything else is made transparent.
+    /// This correctly handles anti-aliased/blended pixels at low zoom — they don't match
+    /// any visible class, so they're hidden along with the explicitly hidden classes.
+    static func filterPixels(_ pngData: Data, keeping colors: [(r: UInt8, g: UInt8, b: UInt8)]) -> Data? {
         guard let image = UIImage(data: pngData), let cgImage = image.cgImage else { return nil }
         let w = cgImage.width, h = cgImage.height
         guard let ctx = CGContext(
@@ -339,33 +362,27 @@ final class WMSTileURLProtocol: URLProtocol, @unchecked Sendable {
             colorHistogram[key, default: 0] += 1
         }
 
-        // For each target color, find the closest actual pixel color
-        var exactColors: Set<UInt32> = []
-        for (tr, tg, tb) in colors {
-            var bestDist = Int.max
-            var bestKey: UInt32 = 0
-            for (key, count) in colorHistogram where count > 4 {
-                let r = Int(key >> 16 & 0xFF)
-                let g = Int(key >> 8 & 0xFF)
-                let b = Int(key & 0xFF)
+        // For each actual pixel color, check if it's close to ANY keep color.
+        // Colors that match a visible class are KEPT; everything else is hidden.
+        var keepColors: Set<UInt32> = []
+        for (key, _) in colorHistogram {
+            let r = Int(key >> 16 & 0xFF)
+            let g = Int(key >> 8 & 0xFF)
+            let b = Int(key & 0xFF)
+            for (tr, tg, tb) in colors {
                 let dist = abs(r - Int(tr)) + abs(g - Int(tg)) + abs(b - Int(tb))
-                if dist < bestDist {
-                    bestDist = dist
-                    bestKey = key
+                if dist < 100 {
+                    keepColors.insert(key)
+                    break
                 }
-            }
-            if bestDist < 100 {
-                exactColors.insert(bestKey)
             }
         }
 
-        guard !exactColors.isEmpty else { return nil }
-
-        // Filter using exact matched colors
+        // Hide pixels NOT matching any visible class
         for i in stride(from: 0, to: w * h * 4, by: 4) {
             if buf[i + 3] == 0 { continue }
             let key = UInt32(buf[i]) << 16 | UInt32(buf[i + 1]) << 8 | UInt32(buf[i + 2])
-            if exactColors.contains(key) {
+            if !keepColors.contains(key) {
                 buf[i + 3] = 0
             }
         }
@@ -400,7 +417,7 @@ enum CropMapOverlayFactory {
     }
 
     /// Wrap a WMS URL template in the arccrop-wms:// proxy scheme.
-    /// Format: `arccrop-wms://t/{bbox-epsg-3857}/BASE64URL?filter=...&crs4326=1`
+    /// Format: `arccrop-wms://t/{bbox-epsg-3857}/BASE64URL?keep=...&crs4326=1`
     static func proxyURL(template: String, needs4326: Bool, filterColors: [(r: UInt8, g: UInt8, b: UInt8)] = []) -> String {
         // Base64url-encode the real URL template (contains PROXY_BBOX placeholder)
         let base64 = Data(template.utf8).base64EncodedString()
@@ -414,13 +431,35 @@ enum CropMapOverlayFactory {
 
         var queryParts: [String] = []
         if needs4326 { queryParts.append("crs4326=1") }
-        if !filterColors.isEmpty {
-            let colorStr = filterColors.map { "\($0.r),\($0.g),\($0.b)" }.joined(separator: "|")
-            queryParts.append("filter=\(colorStr)")
-        }
+        // Always add keep= when filterColors is provided (empty = keep nothing = all transparent)
+        let colorStr = filterColors.map { "\($0.r),\($0.g),\($0.b)" }.joined(separator: "|")
+        queryParts.append("keep=\(colorStr)")
         if !queryParts.isEmpty {
             proxyURL += "?" + queryParts.joined(separator: "&")
         }
+        return proxyURL
+    }
+
+    /// Wrap an XYZ tile URL template in the proxy scheme for per-pixel filtering.
+    /// Format: `http://host/xyz/{z}/{y}/{x}/BASE64?keep=...`
+    static func xyzProxyURL(template: String, filterColors: [(r: UInt8, g: UInt8, b: UInt8)]) -> String {
+        // Replace {z},{y},{x} with PROXY placeholders before base64-encoding
+        let proxyTemplate = template
+            .replacingOccurrences(of: "{z}", with: "PROXY_Z")
+            .replacingOccurrences(of: "{y}", with: "PROXY_Y")
+            .replacingOccurrences(of: "{x}", with: "PROXY_X")
+
+        let base64 = Data(proxyTemplate.utf8).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+
+        // {z},{y},{x} go in the path so MapLibre substitutes them
+        var proxyURL = "http://\(WMSTileURLProtocol.proxyHost)/xyz/{z}/{y}/{x}/\(base64)"
+
+        // Always add keep= (empty = keep nothing = all transparent)
+        let colorStr = filterColors.map { "\($0.r),\($0.g),\($0.b)" }.joined(separator: "|")
+        proxyURL += "?keep=\(colorStr)"
         return proxyURL
     }
 
@@ -458,7 +497,7 @@ enum CropMapOverlayFactory {
                 tileURLTemplate: wmsTemplate(
                     baseURL: "https://geoservice.dlr.de/eoc/land/wms",
                     layers: "CROPTYPES_DE_P1Y",
-                    extraParams: "STYLES=croptypes"),
+                    styles: "croptypes"),
                 minZoom: 0, maxZoom: 18, needs4326: false)
 
         case .rpgFrance:
@@ -554,11 +593,13 @@ enum CropMapOverlayFactory {
                 minZoom: 0, maxZoom: 19, needs4326: false)
 
         case .fvmDenmark:
+            // Use Jordbrugsanalyser namespace which has crop-type coloring
             return WMSSourceParams(
                 identifier: source.id,
                 tileURLTemplate: wmsTemplate(
                     baseURL: "https://geodata.fvm.dk/geoserver/ows",
-                    layers: "Marker_2024"),
+                    layers: "Jordbrugsanalyser:Marker24",
+                    styles: "Marker"),
                 minZoom: 0, maxZoom: 19, needs4326: false)
 
         case .lpisCzechia:
@@ -656,6 +697,16 @@ enum CropMapOverlayFactory {
                 minZoom: 0, maxZoom: 17, needs4326: false)
 
         case .lcdbNewZealand:
+            // Use cached PMTiles overview for fast loading if available
+            let pmtilesFile = "newzealand-overview.pmtiles"
+            if RemotePMTilesCache.isAvailable(pmtilesFile) {
+                return WMSSourceParams(
+                    identifier: source.id,
+                    tileURLTemplate: "http://\(PMTilesURLProtocol.proxyHost)/{z}/{x}/{y}/\(pmtilesFile)",
+                    minZoom: 0, maxZoom: 10, needs4326: false)
+            }
+            // Fall back to WMS and trigger background download
+            RemotePMTilesCache.download(pmtilesFile)
             return WMSSourceParams(
                 identifier: source.id,
                 tileURLTemplate: wmsTemplate(
@@ -664,21 +715,12 @@ enum CropMapOverlayFactory {
                 minZoom: 0, maxZoom: 17, needs4326: false)
 
         case .geoIntaArgentina:
-            return WMSSourceParams(
-                identifier: source.id,
-                tileURLTemplate: wmsTemplate(
-                    baseURL: "https://geo-backend.inta.gob.ar/geoserver/wms",
-                    layers: "geonode:mnc_verano2024_f300268fd112b0ec3ef5f731edb78882",
-                    wmsVersion: "1.3.0"),
-                minZoom: 0, maxZoom: 17, needs4326: false)
+            // Server unreachable (timeout to 200.61.223.5)
+            return nil
 
         case .mapBiomas:
-            return WMSSourceParams(
-                identifier: source.id,
-                tileURLTemplate: wmsTemplate(
-                    baseURL: "http://azure.solved.eco.br:8080/geoserver/ows",
-                    layers: "solved:mapbiomas"),
-                minZoom: 0, maxZoom: 14, needs4326: false)
+            // Server data files corrupted (Java IOException) + HTTP only
+            return nil
 
         case .modisLandCover(year: let year):
             return WMSSourceParams(
@@ -698,14 +740,18 @@ enum CropMapOverlayFactory {
                 minZoom: 0, maxZoom: 8, needs4326: false)
 
         case .nalcms:
-            return WMSSourceParams(
-                identifier: source.id,
-                tileURLTemplate: wmsTemplate(
-                    baseURL: "https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi",
-                    layers: "NALCMS_Land_Cover_2020"),
-                minZoom: 0, maxZoom: 10, needs4326: false)
+            // NALCMS layer not available on GIBS; no public WMS endpoint found
+            return nil
 
         case .deAfricaCrop:
+            let deafPmtiles = "deafrica-crop.pmtiles"
+            if RemotePMTilesCache.isAvailable(deafPmtiles) {
+                return WMSSourceParams(
+                    identifier: source.id,
+                    tileURLTemplate: "http://\(PMTilesURLProtocol.proxyHost)/{z}/{x}/{y}/\(deafPmtiles)",
+                    minZoom: 0, maxZoom: 10, needs4326: false)
+            }
+            RemotePMTilesCache.download(deafPmtiles)
             return WMSSourceParams(
                 identifier: source.id,
                 tileURLTemplate: wmsTemplate(
@@ -715,6 +761,16 @@ enum CropMapOverlayFactory {
                 minZoom: 0, maxZoom: 10, needs4326: false)
 
         case .deaLandCover(year: let year):
+            // Use cached PMTiles overview for fast loading if available
+            let deaPmtiles = "dea-landcover-overview.pmtiles"
+            if RemotePMTilesCache.isAvailable(deaPmtiles) {
+                return WMSSourceParams(
+                    identifier: source.id,
+                    tileURLTemplate: "http://\(PMTilesURLProtocol.proxyHost)/{z}/{x}/{y}/\(deaPmtiles)",
+                    minZoom: 0, maxZoom: 10, needs4326: false)
+            }
+            // Fall back to WMS and trigger background download
+            RemotePMTilesCache.download(deaPmtiles)
             return WMSSourceParams(
                 identifier: source.id,
                 tileURLTemplate: wmsTemplate(
@@ -723,52 +779,40 @@ enum CropMapOverlayFactory {
                     extraParams: "TIME=\(year)-01-01"),
                 minZoom: 0, maxZoom: 12, needs4326: false)
 
-        case .mexicoMadmex(year: let year):
-            return WMSSourceParams(
-                identifier: source.id,
-                tileURLTemplate: wmsTemplate(
-                    baseURL: "http://geonode.conabio.gob.mx/geoserver/ows",
-                    layers: "geonode:National_MAD-Mex_landsat8_lc_\(year)_31_classes"),
-                minZoom: 0, maxZoom: 12, needs4326: false)
+        case .mexicoMadmex:
+            // CONABIO server broken (500 filesystem error)
+            return nil
 
         case .indiaBhuvan:
-            return WMSSourceParams(
-                identifier: source.id,
-                tileURLTemplate: wmsTemplate(
-                    baseURL: "https://bhuvan-ras2.nrsc.gov.in/cgi-bin/LULC250K.exe",
-                    layers: "LULC250K"),
-                minZoom: 0, maxZoom: 12, needs4326: false)
+            // Layer name invalid (LayerNotDefined error from server)
+            return nil
 
-        case .turkeyCorine:
+        case .turkeyCorine(year: let year):
+            // CORINE has data for 2000, 2006, 2012, 2018 — snap to nearest valid year
+            let validYears = [2000, 2006, 2012, 2018]
+            let snapYear = validYears.min(by: { abs($0 - year) < abs($1 - year) }) ?? 2018
             return WMSSourceParams(
                 identifier: source.id,
                 tileURLTemplate: wmsTemplate(
-                    baseURL: "https://image.discomap.eea.europa.eu/arcgis/services/Corine/CLC2018_WM/MapServer/WMSServer",
+                    baseURL: "https://image.discomap.eea.europa.eu/arcgis/services/Corine/CLC\(snapYear)_WM/MapServer/WMSServer",
                     layers: "12"),
                 minZoom: 0, maxZoom: 12, needs4326: false)
 
         case .indonesiaKlhk:
-            return WMSSourceParams(
-                identifier: source.id,
-                tileURLTemplate: wmsTemplate(
-                    baseURL: "https://geoportal.menlhk.go.id/server/services/dunekalks/PL_AR_250K/MapServer/WMSServer",
-                    layers: "0"),
-                minZoom: 0, maxZoom: 12, needs4326: false)
+            // Server unreachable (connection timeout)
+            return nil
 
         case .waporLCC:
-            return WMSSourceParams(
-                identifier: source.id,
-                tileURLTemplate: wmsTemplate(
-                    baseURL: "https://io.apps.fao.org/geoserver/wms",
-                    layers: "WAPOR_2:L2_LCC_A"),
-                minZoom: 0, maxZoom: 10, needs4326: false)
+            // FAO server returning 502 Bad Gateway
+            return nil
 
         case .walloniaAgriculture(year: let year):
+            // Layer 0 = crop categories (visible at all zooms), layer 1 = individual crops (high zoom only)
             return WMSSourceParams(
                 identifier: source.id,
                 tileURLTemplate: wmsTemplate(
                     baseURL: "https://geoservices.wallonie.be/arcgis/services/AGRICULTURE/SIGEC_PARC_AGRI_ANON__\(year)/MapServer/WMSServer",
-                    layers: "1",
+                    layers: "0",
                     wmsVersion: "1.3.0"),
                 minZoom: 0, maxZoom: 19, needs4326: false)
 
@@ -780,31 +824,35 @@ enum CropMapOverlayFactory {
                     layers: "Arealtype"),
                 minZoom: 0, maxZoom: 19, needs4326: false)
 
-        case .dynamicWorld:
+        case .dynamicWorld(year: let year):
             // Esri/Impact Observatory Sentinel-2 10m Land Cover (free, no auth)
             // renderingRule forces classified color output instead of raw integer values
-            let rule = "%7B%22rasterFunction%22%3A%22Cartographic%20Renderer%20-%20Legend%20and%20Attribute%20Table%22%7D"
+            let rule = "%7B%22rasterFunction%22%3A%22Cartographic%20Renderer%20for%20Visualization%20and%20Analysis%22%7D"
+            // Time filter: epoch milliseconds for Jan 1 - Dec 31 of the requested year
+            let cal = Calendar(identifier: .gregorian)
+            let startDate = cal.date(from: DateComponents(year: year, month: 1, day: 1))!
+            let endDate = cal.date(from: DateComponents(year: year, month: 12, day: 31, hour: 23, minute: 59, second: 59))!
+            let startMs = Int(startDate.timeIntervalSince1970 * 1000)
+            let endMs = Int(endDate.timeIntervalSince1970 * 1000)
+            // format=png32 returns RGBA with transparent noData; noData=0 makes black (ocean) transparent
             return WMSSourceParams(
                 identifier: source.id,
-                tileURLTemplate: "https://ic.imagery1.arcgis.com/arcgis/rest/services/Sentinel2_10m_LandCover/ImageServer/exportImage?bbox={bbox-epsg-3857}&bboxSR=3857&size=256,256&imageSR=3857&format=png&f=image&renderingRule=\(rule)",
+                tileURLTemplate: "https://ic.imagery1.arcgis.com/arcgis/rest/services/Sentinel2_10m_LandCover/ImageServer/exportImage?bbox={bbox-epsg-3857}&bboxSR=3857&size=256,256&imageSR=3857&format=png32&f=image&renderingRule=\(rule)&time=\(startMs),\(endMs)&noData=0&noDataInterpretation=esriNoDataMatchAny",
                 minZoom: 0, maxZoom: 14, needs4326: false)
 
         case .copernicusLandCover:
-            // Copernicus Global Land Service LC100 via VITO WMS
+            // Copernicus Global Land Service LC100 — migrated to CDSE WMTS
             return WMSSourceParams(
                 identifier: source.id,
-                tileURLTemplate: wmsTemplate(
-                    baseURL: "https://globalland.vito.be/geoserver/clc/wms",
-                    layers: "clc:lc_global_100m_yearly_v3",
-                    wmsVersion: "1.1.1"),
+                tileURLTemplate: "https://land.copernicus.eu/cdse/lc_global_100m_yearly_v3?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=A_DISCRETE_CLASSIFICATION&STYLE=default&FORMAT=image/png&TILEMATRIXSET=PopularWebMercator256&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&TIME=2019-01-01",
                 minZoom: 0, maxZoom: 13, needs4326: false)
 
         case .fromGLC:
-            // GLAD Global Land Cover/Land Use via ArcGIS tile service (XYZ)
+            // GLAD Global Land Cover/Land Use via ArcGIS tile service (XYZ, starts at z1)
             return WMSSourceParams(
                 identifier: source.id,
                 tileURLTemplate: "https://tiles.arcgis.com/tiles/HVjI8GKrRtjcQ4Ry/arcgis/rest/services/Global_Land_Cover_Land_Use_Systems/MapServer/tile/{z}/{y}/{x}",
-                minZoom: 0, maxZoom: 9, needs4326: false)
+                minZoom: 1, maxZoom: 9, needs4326: false)
 
         default:
             return nil
